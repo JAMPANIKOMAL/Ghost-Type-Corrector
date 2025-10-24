@@ -1,0 +1,24 @@
+name: ghost_type_corrector # Name of the Conda environment
+channels:
+  - conda-forge          # Community channel, often has newer packages
+  - defaults             # Default Anaconda channel
+dependencies:
+  # Python version known to work well with TF 2.10
+  - python=3.10
+
+  # Core libraries (Conda will pick compatible versions)
+  - numpy
+  - tqdm
+  - jupyter              # For notebooks
+  - pip                  # Needed to install TensorFlow from PyPI
+
+  # Libraries installed via pip
+  - pip:
+    # TensorFlow 2.10 (good balance of features and GPU compatibility)
+    - "tensorflow==2.10.*"
+    # TensorFlow.js converter
+    - tensorflowjs       # Let pip find a compatible version
+
+# Optional GPU setup notes (for later):
+# After creating the environment with this file, activate it and run:
+# conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0
