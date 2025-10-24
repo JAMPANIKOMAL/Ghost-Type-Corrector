@@ -1,19 +1,10 @@
-name: gtc-converter      # New environment name: Ghost Type Corrector - Converter
+name: gtc-converter
 channels:
   - defaults
 dependencies:
-  # Python version compatible with TF 2.10
-  - python=3.10
-
-  # Specific NumPy version compatible with TF 2.10
-  - numpy=1.26.4
-
-  # Pip is needed to install TF and TFJS
+  - python
+  - numpy
   - pip
-
-  # Libraries installed via pip
   - pip:
-    # TensorFlow version used to SAVE the model
-    - "tensorflow==2.10.1"
-    # Try the latest TFJS again in this cleaner setup
+    - tensorflow
     - tensorflowjs
