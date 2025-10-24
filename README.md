@@ -1,25 +1,29 @@
-Ghost Type Corrector: AI-Powered Contextual Autocorrect
+# Ghost Type Corrector
 
-Ghost Type Corrector is a browser extension that provides an invisible, "native-feel" autocorrection experience. Unlike other correctors, it features no popups or underlines. It silently corrects text as you type and includes a "backspace-to-undo" feature, mimicking the feel of a mobile keyboard.
+**AI-Powered Contextual Autocorrect Extension**
 
-This project replaces a simple dictionary-based prototype with a true, lightweight, in-browser neural network (RNN/LSTM) to provide contextual grammar and spelling corrections.
+## About the project
+Ghost Type Corrector is a browser extension that provides a phone‑like, invisible autocorrect experience. Instead of underlines or popups, it silently fixes typing errors as you type and lets you undo a correction by pressing Backspace immediately after it occurs.
 
-Core Features
+This is a complete rewrite of the original "Invisible Autocorrect" prototype, replacing a frequency‑dictionary lookup with an in‑browser neural network (RNN/LSTM) for genuine contextual corrections (e.g., "I went too the store").
 
-Invisible Correction: No popups or distracting UI.
+## Core features
+- Truly invisible: no popups, no underlines, no distractions.
+- Context‑aware AI: corrects spelling and contextual errors.
+- Backspace‑to‑undo: Backspace immediately after a correction reverts to your original text.
+- Lightweight & private: runs 100% in the browser with TensorFlow.js — no server required.
 
-Context-Aware AI: Corrects both spelling (stor -> store) and context (too -> to).
+## Project structure
+- `/ai_model/` — Python source, training data, and notebooks used to train and convert the model.  
+- `/extension/` — Loadable unpacked browser extension (JavaScript, TF.js model, etc.).
 
-Backspace Undo: Instantly revert any automatic correction by pressing backspace.
+## Original prototype
+The original dictionary‑based prototype is available at:
+https://github.com/JAMPANIKOMAL/invisible-autocorrect-extension
 
-Lightweight: Runs 100% in the browser using TensorFlow.js. No server or internet connection required for inference.
+## License
+This project is licensed under the MIT License. See the `LICENSE` file for details.
 
-Project Structure
-
-/ai_model/: Contains the Python source code, data, and notebooks used to train and convert the AI model.
-
-/extension/: Contains the loadable, unpacked browser extension (JavaScript, HTML, CSS).
-
-Development Setup
-
-(We will fill this in as we build the project)
+## Acknowledgements
+Developed with assistance from Google's Gemini.  
+The original prototype's frequency ideas were inspired by the SymSpell project.

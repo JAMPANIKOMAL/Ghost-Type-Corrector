@@ -1,7 +1,6 @@
-Python
-
-pycache/
-*.pyc
+# Python
+__pycache__/
+*.py[cod]
 *.pyo
 *.pyd
 .Python
@@ -9,8 +8,7 @@ env/
 venv/
 .venv/
 
-AI Model Files
-
+# AI model files
 *.h5
 *.pb
 *.pt
@@ -18,21 +16,18 @@ AI Model Files
 assets/
 *.model
 
-AI Data
-
+# AI data
 *.csv
 *.txt
 *.zip
 *.gz
 ai_model/data/
 
-Notebooks
-
-.ipynb_checkpoints
+# Notebooks
+.ipynb_checkpoints/
 *.ipynb
 
-Node.js
-
+# Node.js
 node_modules/
 dist/
 build/
@@ -41,8 +36,7 @@ yarn-debug.log*
 yarn-error.log*
 package-lock.json
 
-IDE / OS
-
+# IDE / OS
 .vscode/
 .idea/
 .DS_Store
