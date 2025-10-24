@@ -7,7 +7,7 @@ dependencies:
   - python=3.10
 
   # Core libraries (Conda will pick compatible versions)
-  - numpy
+  - numpy=1.24.3
   - tqdm
   - jupyter              # For notebooks
   - pip                  # Needed to install TensorFlow from PyPI
@@ -15,7 +15,7 @@ dependencies:
   # Libraries installed via pip
   - pip:
     # TensorFlow 2.10 (good balance of features and GPU compatibility)
-    - "tensorflow==2.10.*"
+    - "tensorflow<2.11"
     # TensorFlow.js converter
     - tensorflowjs       # Let pip find a compatible version
 
