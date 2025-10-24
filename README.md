@@ -1,29 +1,44 @@
 # Ghost Type Corrector
 
-**AI-Powered Contextual Autocorrect Extension**
+A next-generation, AI-powered browser extension that provides truly invisible, contextual autocorrection, bringing the seamless "mobile keyboard" experience to your desktop browser.
 
-## About the project
-Ghost Type Corrector is a browser extension that provides a phone‑like, invisible autocorrect experience. Instead of underlines or popups, it silently fixes typing errors as you type and lets you undo a correction by pressing Backspace immediately after it occurs.
+This project is an advanced rebuild of an initial prototype: https://github.com/JAMPANIKOMAL/invisible-autocorrect-extension, replacing the original frequency-dictionary "brain" with a character-level, sequence-to-sequence (seq2seq) neural network.
 
-This is a complete rewrite of the original "Invisible Autocorrect" prototype, replacing a frequency‑dictionary lookup with an in‑browser neural network (RNN/LSTM) for genuine contextual corrections (e.g., "I went too the store").
+## Core Features
 
-## Core features
-- Truly invisible: no popups, no underlines, no distractions.
-- Context‑aware AI: corrects spelling and contextual errors.
-- Backspace‑to‑undo: Backspace immediately after a correction reverts to your original text.
-- Lightweight & private: runs 100% in the browser with TensorFlow.js — no server required.
+- **Invisible Correction:** No distracting popups, underlines, or suggestions. Typos are corrected instantly and silently the moment you press the spacebar.
 
-## Project structure
-- `/ai_model/` — Python source, training data, and notebooks used to train and convert the model.  
-- `/extension/` — Loadable unpacked browser extension (JavaScript, TF.js model, etc.).
+- **Contextual AI:** The model understands context, allowing it to fix both spelling mistakes ("wrod") and grammatical/contextual errors ("I went too the store").
 
-## Original prototype
-The original dictionary‑based prototype is available at:
-https://github.com/JAMPANIKOMAL/invisible-autocorrect-extension
+- **Mobile-Style Undo:** The signature feature: if the AI makes an unwanted correction, simply press Backspace once to instantly undo the correction and revert to your original typing.
 
-## License
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+- **Browser-Native Feel:** The extension disables the browser's default red-squiggle spellcheck, providing a clean, seamless, and native-feeling typing experience.
+
+## Project Status
+
+This project is currently in development. The core focus is on building a lightweight, on-device (TensorFlow.js) neural network that is small enough and fast enough to run entirely within the browser.
+
+## Project Structure
+
+- /ai_model/: Contains all the Python code for developing the AI.
+- /data/: Holds the raw text data for training.
+- /notebooks/: Jupyter Notebooks for data exploration and model prototyping.
+- /src/: Final, clean .py scripts for data processing, training, and conversion.
+- /.venv/: The isolated Python virtual environment.
+- /extension/: Contains the JavaScript, HTML, and JSON files for the Chrome extension.
+- /assets/: Icons and other static files.
+- /js/: The extension's logic.
+- /lib/: JavaScript libraries (e.g., TensorFlow.js).
+- content.js: The main script that runs on pages.
+- override.js: The script that disables browser spellcheck.
+- /model/: The final, converted TensorFlow.js model (model.json, etc.).
+- manifest.json: The extension's configuration file.
 
 ## Acknowledgements
-Developed with assistance from Google's Gemini.  
-The original prototype's frequency ideas were inspired by the SymSpell project.
+
+- Development: This project is being developed with the assistance of Google's Gemini.
+- Dataset: The AI model is trained on the British English (en_GB) corpus provided by the Leipzig Corpora Collection, Leipzig University. We are using the eng-uk_web-public_2018_1M (1 million sentences) dataset.
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
