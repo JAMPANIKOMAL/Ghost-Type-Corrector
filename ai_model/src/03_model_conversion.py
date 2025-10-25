@@ -109,9 +109,29 @@ def convert_model(input_model_path: Path, output_dir: Path):
         print("ERROR: Conversion failed!")
         print()
         if e.stdout:
-            print("STDOUT:", e.stdout)
+            print("STDOUT:")
+            print(e.stdout)
         if e.stderr:
-            print("STDERR:", e.stderr)
+            print("STDERR:")
+            print(e.stderr)
+        print()
+        print("This is likely due to missing dependencies.")
+        print("TensorFlowJS requires some packages we didn't install to avoid conflicts.")
+        print()
+        print("To fix, you can try converting manually using the command line:")
+        print()
+        print(f"  tensorflowjs_converter --input_format keras --output_format {OUTPUT_FORMAT} \\")
+        print(f"    \"{input_model_path}\" \\")
+        print(f"    \"{output_dir}\"")
+        print()
+        return False
+    except FileNotFoundError as e:
+        print("ERROR: tensorflowjs_converter not found!")
+        print()
+        print("Install tensorflowjs:")
+        print("  pip install tensorflowjs==4.4.0 --no-deps")
+        print("  pip install packaging importlib-resources tensorflow-hub")
+        print()
         return False
 
 
@@ -186,13 +206,7 @@ def main():
     print(f"Size: {model_path.stat().st_size / (1024*1024):.2f} MB")
     print()
     
-    # Check dependencies
-    if not check_tensorflowjs_installed():
-        return 1
-    
-    print()
-    
-    # Convert model
+    # Convert model (skip dependency check, just try to run)
     print("STEP 1: Converting Model")
     print("-" * 70)
     success = convert_model(model_path, output_dir)
