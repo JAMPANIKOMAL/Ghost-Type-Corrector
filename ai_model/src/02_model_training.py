@@ -50,14 +50,14 @@ print()
 NUM_SAMPLES = None  # Use full dataset for maximum accuracy
 MAX_SENTENCE_LENGTH = 150  # Increased for longer context
 
-# Model architecture
-EMBEDDING_DIM = 128  # Character embedding dimension
-LATENT_DIM = 256     # LSTM hidden state dimension
+# Model architecture - MAXIMUM SETTINGS
+EMBEDDING_DIM = 256  # Increased from 128 for richer representations
+LATENT_DIM = 512     # Increased from 256 for more model capacity
 
-# Training parameters
-EPOCHS = 10          # Number of training epochs
-BATCH_SIZE = 64      # Batch size (increase for GPU, decrease if OOM)
-VALIDATION_SPLIT = 0.2  # Fraction of data used for validation
+# Training parameters - MAXIMUM SETTINGS
+EPOCHS = 20          # Increased from 10 for better convergence
+BATCH_SIZE = 128     # Increased for faster training (reduce if OOM)
+VALIDATION_SPLIT = 0.15  # More data for training (was 0.2)
 
 # Special tokens
 START_TOKEN = '\t'   # Start of sequence

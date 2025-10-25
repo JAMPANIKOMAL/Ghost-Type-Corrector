@@ -22,11 +22,11 @@ from pathlib import Path
 from tqdm import tqdm
 
 # =============================================================================
-# CONFIGURATION
+# CONFIGURATION - MAXIMUM SETTINGS
 # =============================================================================
 
-# Noise level: probability that a word will have a typo
-NOISE_LEVEL = 0.15
+# Noise level: increased for more training variation
+NOISE_LEVEL = 0.20  # Increased from 0.15 for more diverse typos
 
 # Minimum sentence length (in words) to keep
 MIN_SENTENCE_LENGTH = 3
