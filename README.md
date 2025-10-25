@@ -14,7 +14,7 @@ This project is an advanced rebuild of an initial prototype: https://github.com/
 
 - **Browser-Native Feel:** The extension disables the browser's default red-squiggle spellcheck, providing a clean, seamless, and native-feeling typing experience.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Setup Environment
 
@@ -36,7 +36,7 @@ conda activate ghost-corrector-cpu
 ### 2. Train the Model
 
 ```powershell
-cd ai_model
+cd ai_model/src
 
 # Step 1: Prepare data
 python 01_data_preprocessing.py
@@ -48,40 +48,46 @@ python 02_model_training.py
 python 03_model_conversion.py
 ```
 
-**📖 For detailed instructions, see [SETUP.md](SETUP.md)**
+**For detailed instructions, see [docs/SETUP.md](docs/SETUP.md)**
 
 ---
 
 ## Project Status
 
-✅ **Complete:**
+**Complete:**
 - Data preprocessing pipeline
 - Seq2seq LSTM model architecture  
 - GPU-accelerated training support
 - TensorFlow.js conversion
 - Conda environment configurations
 
-⏳ **In Development:**
+**In Development:**
 - Browser extension JavaScript
 - Content script for autocorrection
 - User interface and settings
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 Ghost Type Corrector/
 ├── environment-gpu.yml              # Conda env for GPU training
 ├── environment-cpu.yml              # Conda env for CPU training
-├── SETUP.md                         # Complete setup and training guide
 ├── README.md                        # This file
+├── LICENSE                          # MIT License
+│
+├── docs/                            # Documentation
+│   ├── SETUP.md                     # Complete setup and training guide
+│   ├── QUICKSTART.md                # Quick reference commands
+│   ├── WORKFLOW.md                  # Visual workflow diagrams
+│   └── CLEANUP_SUMMARY.md           # Project reorganization notes
 │
 ├── ai_model/                        # AI model development
-│   ├── 01_data_preprocessing.py     # Clean data & generate typos
-│   ├── 02_model_training.py         # Train seq2seq LSTM model
-│   ├── 03_model_conversion.py       # Convert to TensorFlow.js
-│   ├── autocorrect_model.h5         # Trained model (generated)
+│   ├── src/                         # Source code
+│   │   ├── 01_data_preprocessing.py # Clean data & generate typos
+│   │   ├── 02_model_training.py     # Train seq2seq LSTM model
+│   │   └── 03_model_conversion.py   # Convert to TensorFlow.js
 │   │
 │   ├── data/                        # Training data
 │   │   ├── corpus.txt               # Raw text (you provide)
@@ -89,14 +95,20 @@ Ghost Type Corrector/
 │   │   ├── train_noisy.txt          # Noisy sentences (generated)
 │   │   └── tokenizer_config.json    # Vocabulary (generated)
 │   │
-│   └── notebooks/                   # Jupyter notebooks for research
+│   ├── notebooks/                   # Jupyter notebooks for research
+│   │   ├── 01_data_exploration.ipynb
+│   │   └── 02_model_building.ipynb
+│   │
+│   └── autocorrect_model.h5         # Trained model (generated)
 │
 └── extension/                       # Browser extension
-    ├── assets/                      # Icons and static files
-    ├── js/                          # Extension JavaScript
     ├── model/                       # TensorFlow.js model (generated)
     │   ├── model.json               # Model architecture
     │   └── *.bin                    # Model weights
+    ├── assets/                      # Icons and static files
+    │   └── icons/
+    ├── js/                          # Extension JavaScript
+    │   └── lib/
     └── manifest.json                # Extension configuration
 ```
 
