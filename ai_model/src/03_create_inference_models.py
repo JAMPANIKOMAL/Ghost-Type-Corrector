@@ -23,7 +23,7 @@ model_path = ai_model_dir / 'autocorrect_model.h5'
 output_dir = project_root / 'extension' / 'model'
 
 print(f"Loading model from: {model_path}")
-model = keras.models.load_model(str(model_path))
+model = keras.models.load_model(str(model_path), compile=False)
 print(f"✓ Model loaded: {model.name}")
 print()
 
