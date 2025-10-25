@@ -41,6 +41,31 @@ else:
 
 print()
 
+# Additional diagnostics: TensorFlow/CUDA/GPU info and small test op
+try:
+    print("TensorFlow version:", tf.__version__)
+    print("TF built with CUDA support:", tf.test.is_built_with_cuda())
+    physical = tf.config.list_physical_devices('GPU')
+    print("Physical GPUs:", physical)
+    logical = tf.config.list_logical_devices('GPU') if physical else []
+    print("Logical GPUs:", logical)
+
+    if physical:
+        # Run a tiny op on GPU: create a tensor and multiply to validate device
+        try:
+            with tf.device('/GPU:0'):
+                a = tf.constant([1.0, 2.0, 3.0])
+                b = a * 2.0
+                # Ensure evaluation - will raise if GPU not available for ops
+                print("GPU test op result:", b.numpy())
+                print("GPU test: SUCCESS - operations run on /GPU:0")
+        except Exception as e:
+            print("GPU test op failed:", e)
+    else:
+        print("GPU test: SKIPPED (no physical GPU devices)")
+except Exception as e:
+    print("GPU diagnostics failed:", e)
+
 
 # =============================================================================
 # TRAINING CONFIGURATION - MAXIMUM SETTINGS
