@@ -34,20 +34,32 @@
 
             const script = document.createElement('script');
             script.src = chrome.runtime.getURL('js/lib/tf.min.js');
+            
             script.onload = () => {
-                console.log("TensorFlow.js injected and loaded successfully.");
-                // Wait a bit for tf to be available on window
-                setTimeout(() => {
+                console.log("TensorFlow.js script injected successfully.");
+                
+                // Poll for window.tf to be available (max 5 seconds)
+                let attempts = 0;
+                const maxAttempts = 50; // 50 * 100ms = 5 seconds
+                
+                const checkTF = setInterval(() => {
+                    attempts++;
+                    
                     if (typeof window.tf !== 'undefined') {
+                        clearInterval(checkTF);
+                        console.log("TensorFlow.js is now available on window object.");
                         resolve();
-                    } else {
-                        reject(new Error("TensorFlow.js loaded but 'tf' is not available on window object."));
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkTF);
+                        reject(new Error("TensorFlow.js loaded but 'tf' is not available on window object after 5 seconds."));
                     }
                 }, 100);
             };
+            
             script.onerror = () => {
                 reject(new Error("Failed to inject TensorFlow.js script."));
             };
+            
             (document.head || document.documentElement).appendChild(script);
         });
     }
