@@ -33,18 +33,30 @@ OUTPUT_FORMAT = 'tfjs_layers_model'
 # =============================================================================
 
 def check_tensorflowjs_installed():
-    """Check if tensorflowjs package is installed."""
+    """Check if tensorflowjs_converter command is available."""
     try:
-        import tensorflowjs
-        print(f"✓ TensorFlowJS version: {tensorflowjs.__version__}")
-        return True
-    except ImportError:
-        print("ERROR: tensorflowjs package not found!")
-        print()
-        print("Please install it:")
-        print("  conda activate ghost-corrector-gpu")
-        print("  pip install tensorflowjs==4.4.0")
-        return False
+        # Try running the converter with --help to verify it's installed
+        result = subprocess.run(
+            [sys.executable, "-m", "tensorflowjs.converters.converter", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5
+        )
+        
+        if result.returncode == 0 or "usage:" in result.stdout.lower() or "usage:" in result.stderr.lower():
+            print(f"✓ TensorFlowJS converter found")
+            return True
+    except Exception as e:
+        pass
+    
+    print("ERROR: tensorflowjs converter not accessible!")
+    print()
+    print("Please install it:")
+    print("  conda activate ghost-corrector-gpu")
+    print("  pip install tensorflowjs==4.4.0 --no-deps")
+    print("  pip install packaging importlib-resources tensorflow-hub")
+    return False
 
 
 def convert_model(input_model_path: Path, output_dir: Path):
