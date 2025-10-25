@@ -4,18 +4,18 @@
 
 (function() {
     'use strict';
-    console.log("Ghost Type Corrector: Content script loaded (Sandbox Mode).");
+    console.log("Ghost Type Corrector: Content script loaded (Sandbox Mode)");
 
     // --- Global Variables ---
     let sandboxReady = false;
     let sandboxIframe = null; 
 
-    // Variables for Text Correction (Keeping these on the content side is key)
+    // Variables for Text Correction
     let lastOriginalWord = null;
     let lastCorrectedWord = null;
-    let lastProcessedElement = null; // Keep track of the element for undo
+    let lastProcessedElement = null;
 
-    // --- Helper Function: Case Matching (Kept here for speed) ---
+    // --- Helper Function: Case Matching ---
     function matchCase(originalWord, correctedWord) {
         if (!originalWord || !correctedWord) return correctedWord;
 
@@ -24,7 +24,7 @@
             return correctedWord.toUpperCase();
         }
         
-        // Title case (First letter capitalized)
+        // Title case (first letter capitalized)
         if (originalWord[0] === originalWord[0].toUpperCase()) {
             return correctedWord.charAt(0).toUpperCase() + correctedWord.slice(1);
         }
@@ -54,32 +54,35 @@
 
     function setupSandbox() {
         sandboxIframe = document.createElement('iframe');
-        // Load the sandboxed HTML page
         sandboxIframe.src = chrome.runtime.getURL('sandbox.html');
         sandboxIframe.style.display = 'none'; // Keep it invisible
+        sandboxIframe.setAttribute('sandbox', 'allow-scripts'); // Explicit sandbox attribute
         document.body.appendChild(sandboxIframe);
 
         // Listener to receive messages from the sandbox
         window.addEventListener('message', handleSandboxMessage);
         
-        console.log("Content Script: Sandbox iframe created and listener attached.");
+        console.log("Content Script: Sandbox iframe created and listener attached");
     }
 
     function handleSandboxMessage(event) {
-        // Security check: Only accept messages from the origin of the content script itself
-        if (event.origin !== window.location.origin || !event.data || event.source !== sandboxIframe.contentWindow) {
+        // Security check: Only accept messages from the sandboxed iframe
+        // The origin will be "null" for sandboxed iframes or chrome-extension:// for the extension
+        if (!event.data || event.source !== sandboxIframe.contentWindow) {
             return; 
         }
 
-        if (event.data.type === 'GTC_READY') {
+        const messageType = event.data.type;
+
+        if (messageType === 'GTC_READY') {
             // AI model is loaded and ready to receive prediction requests
             sandboxReady = true;
-            console.log("Content Script: Sandbox is ready! AI model loaded.");
-            // 4. Attach Event Listeners once everything is ready
+            console.log("Content Script: Sandbox is ready! AI model loaded");
+            // Attach event listeners once everything is ready
             attachListeners(); 
-        } else if (event.data.type === 'GTC_ERROR') {
+        } else if (messageType === 'GTC_ERROR') {
             console.error("Content Script: Sandbox Error:", event.data.message);
-        } else if (event.data.type === 'GTC_RESULT') {
+        } else if (messageType === 'GTC_RESULT') {
             // Correction result received from the sandbox
             applyCorrection(event.data.originalWord, event.data.correctedWord);
         }
@@ -88,8 +91,9 @@
     // --- Autocorrect Logic ---
 
     function attachListeners() {
-        document.body.addEventListener('keyup', handleKeyUp);
-        document.body.addEventListener('keydown', handleKeyDownForUndo); // For undo feature
+        document.body.addEventListener('keyup', handleKeyUp, true);
+        document.body.addEventListener('keydown', handleKeyDownForUndo, true);
+        console.log("Content Script: Event listeners attached");
     }
 
     function handleKeyUp(event) {
@@ -99,23 +103,29 @@
         }
 
         const activeElement = event.target;
+        
+        // Check if the active element is a text input field
         if (activeElement.tagName.toLowerCase() !== 'textarea' && 
             activeElement.type !== 'text' && 
             activeElement.type !== 'search' && 
+            activeElement.type !== 'email' &&
+            activeElement.type !== 'url' &&
             !activeElement.isContentEditable) {
             return;
         }
 
         const text = activeElement.value || activeElement.textContent;
+        if (!text) return;
+
         const words = text.trim().split(/\s+/);
-        if (words.length === 0) {
-            return;
-        }
+        if (words.length === 0) return;
 
         const wordToCheck = words[words.length - 1];
+        if (!wordToCheck || wordToCheck.length === 0) return;
+
         lastProcessedElement = activeElement; // Store the element for later correction/undo
 
-        // 1. Send word to the sandbox for prediction
+        // Send word to the sandbox for prediction
         sandboxIframe.contentWindow.postMessage({
             type: 'GTC_PREDICT',
             word: wordToCheck
@@ -125,7 +135,10 @@
     // --- Apply Correction from Sandbox Result ---
 
     function applyCorrection(originalWord, rawCorrection) {
-        if (!rawCorrection || originalWord.toLowerCase() === rawCorrection.toLowerCase() || !lastProcessedElement) {
+        if (!rawCorrection || 
+            !originalWord || 
+            !lastProcessedElement ||
+            originalWord.toLowerCase() === rawCorrection.toLowerCase()) {
             return;
         }
         
@@ -133,11 +146,13 @@
         const finalCorrection = matchCase(originalWord, rawCorrection);
         
         const text = activeElement.value || activeElement.textContent;
+        if (!text) return;
+
         const words = text.trim().split(/\s+/);
         
         // Ensure the word hasn't changed since we sent the request
-        if (words[words.length - 1].toLowerCase() !== originalWord.toLowerCase()) {
-             // User kept typing, ignore stale correction
+        if (words.length === 0 || words[words.length - 1].toLowerCase() !== originalWord.toLowerCase()) {
+            // User kept typing, ignore stale correction
             return;
         }
         
@@ -155,21 +170,24 @@
         // Track autocorrect for undo feature
         lastOriginalWord = originalWord;
         lastCorrectedWord = finalCorrection;
-    }
 
+        console.log(`Ghost Type Corrector: "${originalWord}" → "${finalCorrection}"`);
+    }
 
     // --- Undo Autocorrect Feature ---
     function handleKeyDownForUndo(event) {
         if (event.key === 'Backspace' && lastCorrectedWord && lastProcessedElement) {
             const activeElement = document.activeElement;
+            
             // Check if the user is in the corrected element
             if (activeElement === lastProcessedElement) {
                 const text = activeElement.value || activeElement.textContent;
+                if (!text) return;
+
                 const words = text.trim().split(/\s+/);
                 
                 // Check if the last word matches the corrected word
                 if (words.length > 0 && words[words.length - 1] === lastCorrectedWord) {
-                    
                     // Undo autocorrect
                     words[words.length - 1] = lastOriginalWord;
                     const newText = words.join(' ') + ' ';
@@ -181,12 +199,14 @@
                         moveCursorToEnd(activeElement);
                     }
                     
+                    console.log(`Ghost Type Corrector: Undo - "${lastCorrectedWord}" → "${lastOriginalWord}"`);
+
                     // Clear last correction data so it only works once
                     lastOriginalWord = null;
                     lastCorrectedWord = null;
                     lastProcessedElement = null;
 
-                    // Prevent default backspace action, since we handled the correction
+                    // Prevent default backspace action
                     event.preventDefault();
                 }
             }
@@ -194,17 +214,27 @@
     }
     
     // --- Initialization Entry Point ---
-    async function initialize() {
+    function initialize() {
         console.log("Ghost Type Corrector: Initializing...");
         
-        // --- ONLY Sandbox Setup Here ---
-        // This is the CRITICAL change: We do NOT try to inject TF.js or poll for window.tf.
+        // Setup sandbox for AI model
         setupSandbox();
         
         console.log("Ghost Type Corrector: Waiting for Sandbox AI model to load...");
     }
 
-    // Start the extension setup
-    initialize();
+    // Start the extension setup when DOM is ready
+    if (document.body) {
+        initialize();
+    } else {
+        // Wait for body to be available
+        const observer = new MutationObserver((mutations, obs) => {
+            if (document.body) {
+                initialize();
+                obs.disconnect();
+            }
+        });
+        observer.observe(document.documentElement, { childList: true });
+    }
 
 })();
