@@ -1,483 +1,210 @@
-﻿// content.js
-// Main script for Ghost Type Corrector: Handles AI model loading, prediction,
-// user input monitoring, correction application, and backspace undo.
+﻿// extension/js/content.js
+// Main script for Ghost Type Corrector: Sets up the sandboxed AI environment 
+// and handles communication, user input, and text replacement.
 
 (function() {
     'use strict';
-    console.log("Ghost Type Corrector: Content script loaded.");
+    console.log("Ghost Type Corrector: Content script loaded (Sandbox Mode).");
 
     // --- Global Variables ---
-    let model = null;
-    let tokenizerConfig = null;
-    let charToIndex = null;
-    let indexToChar = null;
-    let maxSeqLength = null;
-    let startTokenIndex = null;
-    let endTokenIndex = null;
-    let padTokenIndex = 0;
-    let vocabSize = null; // Added vocab size
+    let sandboxReady = false;
+    let sandboxIframe = null; 
 
-    let lastOriginalPhrase = null; // Store the phrase before correction
-    let lastCorrectedPhrase = null;// Store the corrected phrase
-    let lastProcessedElement = null;// Keep track of the element for undo
-    let lastCursorPosition = null; // Store cursor position before correction
+    // Variables for Text Correction (Keeping these on the content side is key)
+    let lastOriginalWord = null;
+    let lastCorrectedWord = null;
+    let lastProcessedElement = null; // Keep track of the element for undo
 
-    // --- Inject TensorFlow.js into page context ---
-    function injectTensorFlowJS() {
-        return new Promise((resolve, reject) => {
-            // Check if TensorFlow is already loaded
-            if (typeof window.tf !== 'undefined') {
-                console.log("TensorFlow.js already loaded in page context.");
-                resolve();
-                return;
-            }
+    // --- Helper Function: Case Matching (Kept here for speed) ---
+    function matchCase(originalWord, correctedWord) {
+        if (!originalWord || !correctedWord) return correctedWord;
 
-            const script = document.createElement('script');
-            script.src = chrome.runtime.getURL('js/lib/tf.min.js');
-            
-            script.onload = () => {
-                console.log("TensorFlow.js script injected successfully.");
-                
-                // Poll for window.tf to be available (max 5 seconds)
-                let attempts = 0;
-                const maxAttempts = 50; // 50 * 100ms = 5 seconds
-                
-                const checkTF = setInterval(() => {
-                    attempts++;
-                    
-                    if (typeof window.tf !== 'undefined') {
-                        clearInterval(checkTF);
-                        console.log("TensorFlow.js is now available on window object.");
-                        resolve();
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(checkTF);
-                        reject(new Error("TensorFlow.js loaded but 'tf' is not available on window object after 5 seconds."));
-                    }
-                }, 100);
-            };
-            
-            script.onerror = () => {
-                reject(new Error("Failed to inject TensorFlow.js script."));
-            };
-            
-            (document.head || document.documentElement).appendChild(script);
-        });
-    }
-
-    // --- Initialization ---
-    async function initialize() {
-        console.log("Ghost Type Corrector: Initializing...");
-        try {
-            // 0. Inject TensorFlow.js first
-            await injectTensorFlowJS();
-
-            // 1. Load Tokenizer Configuration
-            const tokenizerUrl = chrome.runtime.getURL('data/tokenizer_config.json');
-            console.log("Fetching tokenizer config from:", tokenizerUrl);
-            const tokenizerResponse = await fetch(tokenizerUrl);
-            if (!tokenizerResponse.ok) throw new Error(`Tokenizer fetch failed: ${tokenizerResponse.statusText}`);
-            tokenizerConfig = await tokenizerResponse.json();
-            charToIndex = tokenizerConfig.char_to_index;
-            indexToChar = Object.fromEntries(Object.entries(tokenizerConfig.index_to_char).map(([k, v]) => [parseInt(k), v]));
-            maxSeqLength = tokenizerConfig.max_seq_length;
-            startTokenIndex = tokenizerConfig.start_token_index;
-            endTokenIndex = tokenizerConfig.end_token_index;
-            padTokenIndex = tokenizerConfig.pad_token_index;
-            vocabSize = tokenizerConfig.vocab_size; // Added
-            console.log("Tokenizer config loaded. Max length:", maxSeqLength, "Vocab size:", vocabSize);
-
-            // 2. Load TensorFlow.js Model
-            if (typeof window.tf === 'undefined') throw new Error("TensorFlow.js library (tf) not found on window object.");
-            const modelUrl = chrome.runtime.getURL('model/model.json');
-            console.log("Loading model from:", modelUrl);
-            model = await window.tf.loadLayersModel(modelUrl);
-            console.log("TensorFlow.js model loaded successfully.");
-
-            // 3. Model Warmup
-            console.log("Warming up model...");
-            await window.tf.tidy(() => { // Use tidy to auto-dispose tensors
-                // *** FIX: Changed 'int32' to 'float32' to match model.json ***
-                const warmupInput = window.tf.zeros([1, maxSeqLength], 'float32');
-                const dummyDecoderInput = window.tf.zeros([1, maxSeqLength], 'float32');
-                try {
-                    // Our model expects two inputs as defined during training
-                    model.predict([warmupInput, dummyDecoderInput]);
-                } catch (e) {
-                     console.warn("Warmup prediction failed (might indicate issue with model structure):", e);
-                }
-            });
-            console.log("Model warmup complete.");
-
-            // 4. Attach Event Listeners
-            attachListeners();
-
-            console.log("Ghost Type Corrector: Initialization complete. Ready!");
-
-        } catch (error) {
-            console.error("Ghost Type Corrector: Initialization failed:", error);
-            model = null; // Disable functionality
-        }
-    }
-
-    // --- Event Listeners ---
-    function attachListeners() {
-        console.log("Attaching listeners...");
-        // Use event delegation on the body for dynamically added elements
-        document.body.addEventListener('keyup', handleKeyUp, true); // Use capture phase
-        document.body.addEventListener('keydown', handleKeyDown, true); // Use capture phase
-    }
-
-    // --- AI Processing Functions ---
-
-    function vectorizeInputText(text) {
-        if (!tokenizerConfig) return null;
-
-        let cleanedText = text.toLowerCase();
-        const allowedChars = Object.keys(charToIndex).filter(c => c && c !== '\t' && c !== '\n').join('');
-        const regexPattern = new RegExp(`[^${allowedChars}\\s]`, 'g');
-        cleanedText = cleanedText.replace(regexPattern, '');
-        cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
-
-        let indices = [startTokenIndex];
-        for (let i = 0; i < cleanedText.length; i++) {
-            indices.push(charToIndex[cleanedText[i]] || padTokenIndex);
-        }
-        indices.push(endTokenIndex);
-
-        const currentLength = indices.length;
-        if (currentLength > maxSeqLength) {
-            indices = indices.slice(0, maxSeqLength);
-            indices[maxSeqLength - 1] = endTokenIndex;
-            console.warn(`Input text truncated to maxSeqLength: ${maxSeqLength}`);
-        } else {
-            for (let i = currentLength; i < maxSeqLength; i++) {
-                indices.push(padTokenIndex);
-            }
+        // All caps
+        if (originalWord === originalWord.toUpperCase()) {
+            return correctedWord.toUpperCase();
         }
         
-        // *** FIX: Changed 'int32' to 'float32' to match model.json ***
-        return window.tf.tensor2d([indices], [1, maxSeqLength], 'float32');
+        // Title case (First letter capitalized)
+        if (originalWord[0] === originalWord[0].toUpperCase()) {
+            return correctedWord.charAt(0).toUpperCase() + correctedWord.slice(1);
+        }
+
+        // Default to lowercase
+        return correctedWord;
     }
 
-    // *** RECOMMENDED FIX: Replaced entire function to remove dead/confusing code ***
-    async function predictCorrection(inputText) {
-        if (!model || !tokenizerConfig) return null; // Ensure everything is loaded
+    // --- Helper Function: Move Cursor ---
+    function moveCursorToEnd(element) {
+        if (element.value !== undefined) {
+            // For textarea/input
+            element.selectionStart = element.selectionEnd = element.value.length;
+            element.focus();
+        } else if (element.isContentEditable) {
+            // For contentEditable elements
+            const range = document.createRange();
+            const selection = window.getSelection();
+            range.selectNodeContents(element);
+            range.collapse(false); 
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+    }
 
-        // console.time("Prediction");
-        const inputTensor = vectorizeInputText(inputText);
-        if (!inputTensor) return null;
+    // --- Sandbox Communication Setup ---
 
-        let correctedText = '';
-        try {
-            await window.tf.tidy(async () => { // Auto-dispose intermediate tensors
+    function setupSandbox() {
+        sandboxIframe = document.createElement('iframe');
+        // Load the sandboxed HTML page
+        sandboxIframe.src = chrome.runtime.getURL('sandbox.html');
+        sandboxIframe.style.display = 'none'; // Keep it invisible
+        document.body.appendChild(sandboxIframe);
 
-                // --- Decoder Step (Iterative Prediction) ---
-                // We will feed the model the encoder input + the target sequence so far,
-                // and let the model's internal graph pass the encoder state to the decoder.
+        // Listener to receive messages from the sandbox
+        window.addEventListener('message', handleSandboxMessage);
+        
+        console.log("Content Script: Sandbox iframe created and listener attached.");
+    }
 
-                // Start with the START_TOKEN index
-                // *** FIX: Changed 'int32' to 'float32' to match model.json ***
-                let targetSeq = window.tf.buffer([1, maxSeqLength], 'float32'); 
-                targetSeq.set(startTokenIndex, 0, 0); // Set first element to START
+    function handleSandboxMessage(event) {
+        // Security check: Only accept messages from the origin of the content script itself
+        if (event.origin !== window.location.origin || !event.data || event.source !== sandboxIframe.contentWindow) {
+            return; 
+        }
 
-                let stopCondition = false;
-                let decodedSentence = '';
+        if (event.data.type === 'GTC_READY') {
+            // AI model is loaded and ready to receive prediction requests
+            sandboxReady = true;
+            console.log("Content Script: Sandbox is ready! AI model loaded.");
+            // 4. Attach Event Listeners once everything is ready
+            attachListeners(); 
+        } else if (event.data.type === 'GTC_ERROR') {
+            console.error("Content Script: Sandbox Error:", event.data.message);
+        } else if (event.data.type === 'GTC_RESULT') {
+            // Correction result received from the sandbox
+            applyCorrection(event.data.originalWord, event.data.correctedWord);
+        }
+    }
 
-                for (let i = 0; i < maxSeqLength - 1; i++) { // Loop up to max length - 1
-                    // Prepare decoder input for this timestep (only the current target sequence matters)
-                    const currentTargetTensor = window.tf.tensor(targetSeq.toTensor());
+    // --- Autocorrect Logic ---
 
-                    // Predict the next character
-                    // This uses the full model, which re-runs the encoder internally.
-                    // It's inefficient, but correct for this model architecture.
-                    const outputTokensTensor = model.predict([inputTensor, currentTargetTensor]);
+    function attachListeners() {
+        document.body.addEventListener('keyup', handleKeyUp);
+        document.body.addEventListener('keydown', handleKeyDownForUndo); // For undo feature
+    }
 
-                    // Get the character index with the highest probability at the current timestep 'i'
-                    const sampledTokenIndex = window.tf.argMax(outputTokensTensor.slice([0, i, 0], [1, 1, vocabSize]), -1).dataSync()[0];
+    function handleKeyUp(event) {
+        // Trigger only on spacebar AND if sandbox is ready
+        if (event.key !== ' ' || !sandboxReady) {
+            return;
+        }
 
-                    const sampledChar = indexToChar[sampledTokenIndex];
+        const activeElement = event.target;
+        if (activeElement.tagName.toLowerCase() !== 'textarea' && 
+            activeElement.type !== 'text' && 
+            activeElement.type !== 'search' && 
+            !activeElement.isContentEditable) {
+            return;
+        }
 
-                    // Exit condition: either END_TOKEN predicted or max length reached
-                    if (sampledChar === indexToChar[endTokenIndex] || i === maxSeqLength - 2) {
-                        stopCondition = true;
+        const text = activeElement.value || activeElement.textContent;
+        const words = text.trim().split(/\s+/);
+        if (words.length === 0) {
+            return;
+        }
+
+        const wordToCheck = words[words.length - 1];
+        lastProcessedElement = activeElement; // Store the element for later correction/undo
+
+        // 1. Send word to the sandbox for prediction
+        sandboxIframe.contentWindow.postMessage({
+            type: 'GTC_PREDICT',
+            word: wordToCheck
+        }, '*');
+    }
+
+    // --- Apply Correction from Sandbox Result ---
+
+    function applyCorrection(originalWord, rawCorrection) {
+        if (!rawCorrection || originalWord.toLowerCase() === rawCorrection.toLowerCase() || !lastProcessedElement) {
+            return;
+        }
+        
+        const activeElement = lastProcessedElement;
+        const finalCorrection = matchCase(originalWord, rawCorrection);
+        
+        const text = activeElement.value || activeElement.textContent;
+        const words = text.trim().split(/\s+/);
+        
+        // Ensure the word hasn't changed since we sent the request
+        if (words[words.length - 1].toLowerCase() !== originalWord.toLowerCase()) {
+             // User kept typing, ignore stale correction
+            return;
+        }
+        
+        // Perform replacement
+        words[words.length - 1] = finalCorrection;
+        const newText = words.join(' ') + ' ';
+
+        if (activeElement.value !== undefined) {
+            activeElement.value = newText;
+        } else {
+            activeElement.textContent = newText;
+            moveCursorToEnd(activeElement);
+        }
+
+        // Track autocorrect for undo feature
+        lastOriginalWord = originalWord;
+        lastCorrectedWord = finalCorrection;
+    }
+
+
+    // --- Undo Autocorrect Feature ---
+    function handleKeyDownForUndo(event) {
+        if (event.key === 'Backspace' && lastCorrectedWord && lastProcessedElement) {
+            const activeElement = document.activeElement;
+            // Check if the user is in the corrected element
+            if (activeElement === lastProcessedElement) {
+                const text = activeElement.value || activeElement.textContent;
+                const words = text.trim().split(/\s+/);
+                
+                // Check if the last word matches the corrected word
+                if (words.length > 0 && words[words.length - 1] === lastCorrectedWord) {
+                    
+                    // Undo autocorrect
+                    words[words.length - 1] = lastOriginalWord;
+                    const newText = words.join(' ') + ' ';
+                    
+                    if (activeElement.value !== undefined) {
+                        activeElement.value = newText;
                     } else {
-                        // Append the predicted character (if not END_TOKEN)
-                        decodedSentence += sampledChar;
+                        activeElement.textContent = newText;
+                        moveCursorToEnd(activeElement);
                     }
+                    
+                    // Clear last correction data so it only works once
+                    lastOriginalWord = null;
+                    lastCorrectedWord = null;
+                    lastProcessedElement = null;
 
-                    // Update the target sequence for the next timestep
-                    if (i + 1 < maxSeqLength) {
-                         targetSeq.set(sampledTokenIndex, 0, i + 1);
-                    }
-
-                    // Dispose intermediate tensors
-                     currentTargetTensor.dispose();
-                     outputTokensTensor.dispose();
-
-                    if (stopCondition) {
-                        break;
-                    }
+                    // Prevent default backspace action, since we handled the correction
+                    event.preventDefault();
                 }
-
-                 // Remove potential END_TOKEN character if present at the end
-                 correctedText = decodedSentence.replace(/\n$/, '');
-
-            }); // End tf.tidy
-        } catch (error) {
-             console.error("Prediction failed:", error);
-             correctedText = null; // Indicate failure
-        } finally {
-            inputTensor.dispose(); // Manually dispose input tensor after tidy finishes
-           // console.timeEnd("Prediction");
-        }
-
-        return correctedText;
-    }
-
-
-    // --- Core Logic ---
-
-    // Debounce mechanism to avoid running prediction on every keystroke
-    let debounceTimer;
-    const DEBOUNCE_DELAY = 300; // ms to wait after typing stops
-
-    async function handleKeyUp(event) {
-        // Only trigger on space or enter, and only if AI is ready
-        if (!model || (event.key !== ' ' && event.key !== 'Enter')) {
-            clearTimeout(debounceTimer); // Clear timer if it's not space/enter
-            return;
-        }
-
-        const target = event.target;
-        // Check if the target is an editable field
-        if (!(target.isContentEditable || target.nodeName === 'TEXTAREA' || (target.nodeName === 'INPUT' && /^(text|search|url|tel|email|password)$/i.test(target.type)))) {
-             clearTimeout(debounceTimer);
-             return;
-        }
-
-        // --- Debounce ---
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(async () => {
-            let textToProcess = '';
-            let currentCursorPosition = 0;
-
-            // Get text and cursor position based on element type
-             if (target.isContentEditable) {
-                // For contentEditable, process the text content up to the cursor
-                const selection = window.getSelection();
-                if (selection.rangeCount > 0) {
-                     const range = selection.getRangeAt(0);
-                     currentCursorPosition = range.startOffset; // Position within the current text node
-                     const container = range.startContainer;
-                     if(container.nodeType === Node.TEXT_NODE) {
-                         textToProcess = container.textContent.substring(0, currentCursorPosition);
-                     } else {
-                         // Fallback for complex contentEditable - might need refinement
-                         textToProcess = target.textContent;
-                         currentCursorPosition = textToProcess.length; // Approximate
-                     }
-                } else {
-                     textToProcess = target.textContent; // Get all text if no selection
-                     currentCursorPosition = textToProcess.length;
-                }
-            } else { // Input or Textarea
-                textToProcess = target.value;
-                currentCursorPosition = target.selectionStart;
-            }
-
-
-            // Trim whitespace from the end for processing
-             const trimmedText = textToProcess.trimEnd();
-             if (trimmedText.length === 0) return; // Nothing to process
-
-
-             // --- Extract last meaningful segment (e.g., sentence or phrase) ---
-             // Simple approach: process the text before the cursor
-             const textBeforeCursor = trimmedText.substring(0, currentCursorPosition);
-
-            // More robust: Find the last sentence boundary (., !, ?) or start of text
-             let lastSentenceStart = Math.max(
-                 textBeforeCursor.lastIndexOf('. '),
-                 textBeforeCursor.lastIndexOf('! '),
-                 textBeforeCursor.lastIndexOf('? '),
-                 textBeforeCursor.lastIndexOf('\n'), // Consider newlines as boundaries
-                 0 // Start of the text
-             );
-             // Adjust if the boundary char was found
-             if (lastSentenceStart > 0 && ['.', '!', '?','\n'].includes(textBeforeCursor[lastSentenceStart])) {
-                 lastSentenceStart += 1; // Start after the boundary character
-             }
-             // Trim leading space after boundary
-             while (lastSentenceStart < textBeforeCursor.length && textBeforeCursor[lastSentenceStart] === ' ') {
-                 lastSentenceStart++;
-             }
-
-             const phraseToCorrect = textBeforeCursor.substring(lastSentenceStart).trim();
-
-
-            if (!phraseToCorrect || phraseToCorrect.length < 3) return; // Don't correct very short inputs
-
-            console.log("Phrase to correct:", `"${phraseToCorrect}"`);
-            const correctedPhrase = await predictCorrection(phraseToCorrect);
-
-             if (correctedPhrase && correctedPhrase !== phraseToCorrect) {
-                 console.log("Correction found:", `"${correctedPhrase}"`);
-
-                 // Store for undo
-                 lastOriginalPhrase = phraseToCorrect;
-                 lastCorrectedPhrase = correctedPhrase;
-                 lastProcessedElement = target;
-                 lastCursorPosition = currentCursorPosition; // Store cursor pos BEFORE correction
-
-                 // --- Replace the text ---
-                 // This needs to carefully replace only the corrected part
-                 const textBeforePhrase = textBeforeCursor.substring(0, lastSentenceStart);
-                 const textAfterCursor = textToProcess.substring(currentCursorPosition); // Text originally after cursor
-
-                 const newText = textBeforePhrase + correctedPhrase; // + textAfterCursor; // Decide if text after cursor should be kept
-                 const newCursorPosition = textBeforePhrase.length + correctedPhrase.length;
-
-                 if (target.isContentEditable) {
-                     // ContentEditable replacement is complex and needs range manipulation
-                     // Simple approach (might lose formatting):
-                     // target.textContent = newText + textAfterCursor; // Overwrite all
-                     // More complex range manipulation needed here for robust solution
-                     console.warn("ContentEditable replacement not fully implemented - using basic textContent update.");
-                     // Attempt basic update (find the text node and replace relevant part)
-                     const selection = window.getSelection();
-                     if (selection.rangeCount > 0) {
-                         const range = selection.getRangeAt(0);
-                         const container = range.startContainer;
-                         if(container.nodeType === Node.TEXT_NODE) {
-                              const originalContent = container.textContent;
-                              // Replace the segment within the text node
-                              container.textContent = originalContent.substring(0, lastSentenceStart) + correctedPhrase + originalContent.substring(currentCursorPosition);
-                              // Try to restore cursor (approximate)
-                               const newRange = document.createRange();
-                               newRange.setStart(container, Math.min(newCursorPosition, container.textContent.length));
-                               newRange.collapse(true);
-                               selection.removeAllRanges();
-                               selection.addRange(newRange);
-                         } else {
-                              target.textContent = newText + textAfterCursor; // Fallback
-                         }
-                     } else {
-                          target.textContent = newText + textAfterCursor; // Fallback
-                     }
-
-
-                 } else { // Input or Textarea
-                     target.value = newText + textAfterCursor; // Replace the value
-                     // Restore cursor position
-                     target.setSelectionRange(newCursorPosition, newCursorPosition);
-                 }
-
-
-             } else if (correctedPhrase === phraseToCorrect) {
-                // console.log("No correction needed.");
-             } else {
-                console.log("Prediction failed or returned null.");
-             }
-
-        }, DEBOUNCE_DELAY); // End debounce setTimeout
-    }
-
-    function handleKeyDown(event) {
-        if (!model || event.key !== 'Backspace') {
-            lastOriginalPhrase = null; // Clear undo state if any other key is pressed
-            lastCorrectedPhrase = null;
-            lastProcessedElement = null;
-            lastCursorPosition = null;
-            return;
-        }
-
-        const target = event.target;
-        // Check if undo is possible
-        if (target === lastProcessedElement && lastOriginalPhrase && lastCorrectedPhrase) {
-            let textBeforeCursor = '';
-            let currentCursorPosition = 0;
-
-            // Get current text and cursor position
-            if (target.isContentEditable) {
-                const selection = window.getSelection();
-                if (selection.rangeCount > 0) {
-                     const range = selection.getRangeAt(0);
-                     currentCursorPosition = range.startOffset;
-                     const container = range.startContainer;
-                     if (container.nodeType === Node.TEXT_NODE) {
-                         textBeforeCursor = container.textContent.substring(0, currentCursorPosition);
-                     } else { // Fallback needed
-                          textBeforeCursor = target.textContent.substring(0, lastCursorPosition); // Use stored pos as approx
-                          currentCursorPosition = lastCursorPosition;
-                     }
-                } else return; // Cannot undo without selection info
-
-            } else { // Input or Textarea
-                currentCursorPosition = target.selectionStart;
-                textBeforeCursor = target.value.substring(0, currentCursorPosition);
-            }
-
-
-            // Check if the text immediately preceding the cursor matches the corrected phrase
-            if (textBeforeCursor.endsWith(lastCorrectedPhrase)) {
-                // Prevent the default backspace action
-                event.preventDefault();
-
-                // Calculate where the original phrase should start
-                const replaceStartIndex = currentCursorPosition - lastCorrectedPhrase.length;
-
-                // Restore the original phrase
-                const textBeforeOriginal = textBeforeCursor.substring(0, replaceStartIndex);
-                let textAfterOriginal = '';
-
-                if (target.isContentEditable) {
-                     const selection = window.getSelection();
-                     const range = selection.getRangeAt(0);
-                     const container = range.startContainer;
-                     if(container.nodeType === Node.TEXT_NODE) {
-                         textAfterOriginal = container.textContent.substring(currentCursorPosition);
-                         container.textContent = textBeforeOriginal + lastOriginalPhrase + textAfterOriginal;
-                         // Set cursor position after the restored original phrase
-                         const newCursorPos = replaceStartIndex + lastOriginalPhrase.length;
-                         const newRange = document.createRange();
-                         newRange.setStart(container, Math.min(newCursorPos, container.textContent.length));
-                         newRange.collapse(true);
-                         selection.removeAllRanges();
-                         selection.addRange(newRange);
-
-                     } else { // Fallback needed
-                          target.textContent = textBeforeOriginal + lastOriginalPhrase + target.textContent.substring(lastCursorPosition);
-                     }
-
-                } else { // Input or Textarea
-                    textAfterOriginal = target.value.substring(currentCursorPosition);
-                    target.value = textBeforeOriginal + lastOriginalPhrase + textAfterOriginal;
-                    // Set cursor position after the restored original phrase
-                    const newCursorPos = replaceStartIndex + lastOriginalPhrase.length;
-                    target.setSelectionRange(newCursorPos, newCursorPos);
-                }
-
-
-                console.log("Undo applied:", `"${lastCorrectedPhrase}" -> "${lastOriginalPhrase}"`);
-
-                // Clear undo state after applying
-                lastOriginalPhrase = null;
-                lastCorrectedPhrase = null;
-                lastProcessedElement = null;
-                lastCursorPosition = null;
-
-            } else {
-                 // Cursor isn't right after the corrected word, allow normal backspace
-                 lastOriginalPhrase = null;
-                 lastCorrectedPhrase = null;
-                 lastProcessedElement = null;
-                 lastCursorPosition = null;
             }
         }
     }
+    
+    // --- Initialization Entry Point ---
+    async function initialize() {
+        console.log("Ghost Type Corrector: Initializing...");
+        
+        // --- ONLY Sandbox Setup Here ---
+        // This is the CRITICAL change: We do NOT try to inject TF.js or poll for window.tf.
+        setupSandbox();
+        
+        console.log("Ghost Type Corrector: Waiting for Sandbox AI model to load...");
+    }
 
+    // Start the extension setup
+    initialize();
 
-    // --- Start Initialization ---
-    setTimeout(initialize, 500); // Wait 500ms
-
-})(); // IIFE
+})();
