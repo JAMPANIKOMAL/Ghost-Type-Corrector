@@ -8,20 +8,31 @@ env/
 venv/
 .venv/
 
-# AI model files
+# Conda environments (use environment YAML files instead)
+ghost-corrector-*/
+
+# AI model files (generated, don't commit)
 *.h5
 *.pb
 *.pt
 *.keras
+saved_model*/
 assets/
 *.model
 
-# AI data
+# AI data (generated or downloaded, don't commit)
 *.csv
-*.txt
+ai_model/data/*.txt
+ai_model/data/corpus.txt
 *.zip
 *.gz
-ai_model/data/
+
+# Keep tokenizer config (needed for inference)
+!ai_model/data/tokenizer_config.json
+
+# TensorFlow.js model (generated, optional to commit)
+extension/model/*.bin
+extension/model/model.json
 
 # Notebooks
 .ipynb_checkpoints/
@@ -41,3 +52,9 @@ package-lock.json
 .idea/
 .DS_Store
 *.log
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
