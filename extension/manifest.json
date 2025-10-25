@@ -27,7 +27,9 @@
         "model/model.json",   
         "model/*.bin",
         "data/tokenizer_config.json",
-        "js/lib/tf.min.js"
+        "js/lib/tf.min.js",
+        "js/tf-bridge.js",
+        "js/page-script.js"
       ],
       "matches": ["<all_urls>"]
     }
