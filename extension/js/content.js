@@ -110,7 +110,7 @@
                     
                     el.value = text.substring(0, start) + corrected.trim() + text.substring(endPos);
                     el.setSelectionRange(start + corrected.trim().length, start + corrected.trim().length);
-                    console.log(""  "");
+                    console.log(`"${phrase}" → "${corrected.trim()}"`);
                 }
             }, 300);
         }
@@ -125,7 +125,7 @@
                     event.preventDefault();
                     el.value = el.value.substring(0, idx) + lastOriginalPhrase + el.value.substring(idx + lastCorrectedPhrase.length);
                     el.setSelectionRange(idx + lastOriginalPhrase.length, idx + lastOriginalPhrase.length);
-                    console.log(Undo: ""  "");
+                    console.log(`Undo: "${lastCorrectedPhrase}" → "${lastOriginalPhrase}"`);
                     lastOriginalPhrase = null;
                     lastCorrectedPhrase = null;
                     lastProcessedElement = null;
