@@ -328,7 +328,7 @@
       ],
       "weights": [
         {
-          "name": "weight_0",
+          "name": "encoder_embedding/embeddings:0",
           "shape": [
             30,
             256
@@ -336,7 +336,7 @@
           "dtype": "float32"
         },
         {
-          "name": "weight_1",
+          "name": "decoder_embedding/embeddings:0",
           "shape": [
             30,
             256
@@ -344,7 +344,7 @@
           "dtype": "float32"
         },
         {
-          "name": "weight_2",
+          "name": "encoder_lstm/kernel:0",
           "shape": [
             256,
             2048
@@ -352,7 +352,7 @@
           "dtype": "float32"
         },
         {
-          "name": "weight_3",
+          "name": "encoder_lstm/recurrent_kernel:0",
           "shape": [
             512,
             2048
@@ -360,14 +360,14 @@
           "dtype": "float32"
         },
         {
-          "name": "weight_4",
+          "name": "encoder_lstm/bias:0",
           "shape": [
             2048
           ],
           "dtype": "float32"
         },
         {
-          "name": "weight_5",
+          "name": "decoder_lstm/kernel:0",
           "shape": [
             256,
             2048
@@ -375,7 +375,7 @@
           "dtype": "float32"
         },
         {
-          "name": "weight_6",
+          "name": "decoder_lstm/recurrent_kernel:0",
           "shape": [
             512,
             2048
@@ -383,14 +383,14 @@
           "dtype": "float32"
         },
         {
-          "name": "weight_7",
+          "name": "decoder_lstm/bias:0",
           "shape": [
             2048
           ],
           "dtype": "float32"
         },
         {
-          "name": "weight_8",
+          "name": "output_dense/kernel:0",
           "shape": [
             512,
             30
@@ -398,7 +398,7 @@
           "dtype": "float32"
         },
         {
-          "name": "weight_9",
+          "name": "output_dense/bias:0",
           "shape": [
             30
           ],

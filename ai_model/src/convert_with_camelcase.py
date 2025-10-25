@@ -96,21 +96,55 @@ def convert_model():
     print(f"✓ Extracted {len(weights)} weight tensors")
     print()
     
-    # Save weights as binary files
+    # Save weights as binary files with proper layer names
     print("Saving weight files...")
     weight_specs = []
+    weight_index = 0
     
-    for i, weight in enumerate(weights):
-        # Save weight to file
-        weight_file = output_dir / f'group1-shard{i+1}of{len(weights)}.bin'
-        weight.tofile(str(weight_file))
+    for layer in model.layers:
+        layer_weights = layer.get_weights()
+        if not layer_weights:
+            continue
+            
+        layer_name = layer.name
+        layer_class = layer.__class__.__name__
         
-        weight_spec = {
-            'name': f'weight_{i}',
-            'shape': list(weight.shape),
-            'dtype': str(weight.dtype).replace('float32', 'float32')
-        }
-        weight_specs.append(weight_spec)
+        print(f"  Processing layer: {layer_name} ({layer_class}) - {len(layer_weights)} weights")
+        
+        # Map weight types based on layer class and actual weight shapes
+        for i, weight in enumerate(layer_weights):
+            # Save weight to file
+            weight_file = output_dir / f'group1-shard{weight_index+1}of{len(weights)}.bin'
+            weight.tofile(str(weight_file))
+            
+            # Determine weight name based on layer type and weight index
+            if layer_class == 'Embedding':
+                weight_name = f'{layer_name}/embeddings:0'
+            elif layer_class == 'LSTM':
+                # LSTM has 3 weights: kernel, recurrent_kernel, bias
+                if i == 0:
+                    weight_name = f'{layer_name}/kernel:0'
+                elif i == 1:
+                    weight_name = f'{layer_name}/recurrent_kernel:0'
+                else:
+                    weight_name = f'{layer_name}/bias:0'
+            elif layer_class == 'Dense' or layer_class == 'TimeDistributed':
+                # Dense has 2 weights: kernel, bias
+                if i == 0:
+                    weight_name = f'{layer_name}/kernel:0'
+                else:
+                    weight_name = f'{layer_name}/bias:0'
+            else:
+                # Fallback for unknown layer types
+                weight_name = f'{layer_name}/weight_{i}:0'
+            
+            weight_spec = {
+                'name': weight_name,
+                'shape': list(weight.shape),
+                'dtype': 'float32'
+            }
+            weight_specs.append(weight_spec)
+            weight_index += 1
     
     print(f"✓ Saved {len(weights)} weight files")
     print()
