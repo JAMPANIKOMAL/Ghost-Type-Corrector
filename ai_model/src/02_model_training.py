@@ -43,12 +43,12 @@ print()
 
 
 # =============================================================================
-# TRAINING CONFIGURATION
+# TRAINING CONFIGURATION - MAXIMUM SETTINGS
 # =============================================================================
 
 # Data loading
-NUM_SAMPLES = 100000  # Number of training samples (set to None for full dataset)
-MAX_SENTENCE_LENGTH = 100  # Filter out sentences longer than this
+NUM_SAMPLES = None  # Use full dataset for maximum accuracy
+MAX_SENTENCE_LENGTH = 150  # Increased for longer context
 
 # Model architecture
 EMBEDDING_DIM = 128  # Character embedding dimension
