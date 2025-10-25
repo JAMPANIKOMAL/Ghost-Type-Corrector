@@ -27,7 +27,7 @@
         console.log("Ghost Type Corrector: Initializing...");
         try {
             // 1. Load Tokenizer Configuration
-            const tokenizerUrl = chrome.runtime.getURL('../ai_model/data/tokenizer_config.json');
+            const tokenizerUrl = chrome.runtime.getURL('data/tokenizer_config.json');
             console.log("Fetching tokenizer config from:", tokenizerUrl);
             const tokenizerResponse = await fetch(tokenizerUrl);
             if (!tokenizerResponse.ok) throw new Error(`Tokenizer fetch failed: ${tokenizerResponse.statusText}`);
