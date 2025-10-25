@@ -12,27 +12,27 @@
     {
       "matches": ["<all_urls>"],
       "js": [
-        "js/lib/tf.min.js",   // TensorFlow.js library
-        "js/override.js",     // Script to disable native spellcheck
-        "js/content.js"       // Main script with AI and UX logic
+        "js/lib/tf.min.js",   
+        "js/override.js",     
+        "js/content.js"       
       ],
-      "run_at": "document_idle" // Run scripts after the page is mostly loaded
+      "run_at": "document_idle" 
     }
   ],
   "web_accessible_resources": [
     {
       "resources": [
-        "model/model.json",   // Make model files accessible to the content script
+        "model/model.json",   
         "model/*.bin"
       ],
       "matches": ["<all_urls>"]
     }
   ],
   "permissions": [
-    "scripting",        // Needed to interact with page content
-    "activeTab"         // General permission often needed
+    "scripting",        
+    "activeTab"         
   ],
   "host_permissions": [
-    "<all_urls>"        // Allow scripts to run on all websites
+    "<all_urls>"       
   ]
 }
