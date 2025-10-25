@@ -14,25 +14,91 @@ This project is an advanced rebuild of an initial prototype: https://github.com/
 
 - **Browser-Native Feel:** The extension disables the browser's default red-squiggle spellcheck, providing a clean, seamless, and native-feeling typing experience.
 
+## 🚀 Quick Start
+
+### 1. Setup Environment
+
+Choose GPU (faster) or CPU (universal):
+
+**GPU Training (Recommended):**
+```powershell
+conda env create -f environment-gpu.yml
+conda activate ghost-corrector-gpu
+conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0
+```
+
+**CPU Training:**
+```powershell
+conda env create -f environment-cpu.yml
+conda activate ghost-corrector-cpu
+```
+
+### 2. Train the Model
+
+```powershell
+cd ai_model
+
+# Step 1: Prepare data
+python 01_data_preprocessing.py
+
+# Step 2: Train model (5-50 minutes depending on hardware)
+python 02_model_training.py
+
+# Step 3: Convert to TensorFlow.js
+python 03_model_conversion.py
+```
+
+**📖 For detailed instructions, see [SETUP.md](SETUP.md)**
+
+---
+
 ## Project Status
 
-This project is currently in development. The core focus is on building a lightweight, on-device (TensorFlow.js) neural network that is small enough and fast enough to run entirely within the browser.
+✅ **Complete:**
+- Data preprocessing pipeline
+- Seq2seq LSTM model architecture  
+- GPU-accelerated training support
+- TensorFlow.js conversion
+- Conda environment configurations
 
-## Project Structure
+⏳ **In Development:**
+- Browser extension JavaScript
+- Content script for autocorrection
+- User interface and settings
 
-- /ai_model/: Contains all the Python code for developing the AI.
-- /data/: Holds the raw text data for training.
-- /notebooks/: Jupyter Notebooks for data exploration and model prototyping.
-- /src/: Final, clean .py scripts for data processing, training, and conversion.
-- /.venv/: The isolated Python virtual environment.
-- /extension/: Contains the JavaScript, HTML, and JSON files for the Chrome extension.
-- /assets/: Icons and other static files.
-- /js/: The extension's logic.
-- /lib/: JavaScript libraries (e.g., TensorFlow.js).
-- content.js: The main script that runs on pages.
-- override.js: The script that disables browser spellcheck.
-- /model/: The final, converted TensorFlow.js model (model.json, etc.).
-- manifest.json: The extension's configuration file.
+---
+
+## 🗂️ Project Structure
+
+```
+Ghost Type Corrector/
+├── environment-gpu.yml              # Conda env for GPU training
+├── environment-cpu.yml              # Conda env for CPU training
+├── SETUP.md                         # Complete setup and training guide
+├── README.md                        # This file
+│
+├── ai_model/                        # AI model development
+│   ├── 01_data_preprocessing.py     # Clean data & generate typos
+│   ├── 02_model_training.py         # Train seq2seq LSTM model
+│   ├── 03_model_conversion.py       # Convert to TensorFlow.js
+│   ├── autocorrect_model.h5         # Trained model (generated)
+│   │
+│   ├── data/                        # Training data
+│   │   ├── corpus.txt               # Raw text (you provide)
+│   │   ├── train_clean.txt          # Clean sentences (generated)
+│   │   ├── train_noisy.txt          # Noisy sentences (generated)
+│   │   └── tokenizer_config.json    # Vocabulary (generated)
+│   │
+│   └── notebooks/                   # Jupyter notebooks for research
+│
+└── extension/                       # Browser extension
+    ├── assets/                      # Icons and static files
+    ├── js/                          # Extension JavaScript
+    ├── model/                       # TensorFlow.js model (generated)
+    │   ├── model.json               # Model architecture
+    │   └── *.bin                    # Model weights
+    └── manifest.json                # Extension configuration
+```
 
 ## Acknowledgements
 

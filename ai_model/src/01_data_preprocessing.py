@@ -1,147 +1,237 @@
+#!/usr/bin/env python3
+"""
+Ghost Type Corrector - Data Preprocessing Pipeline
+===================================================
+Prepares training data by cleaning corpus text and generating synthetic typos.
+
+This script:
+1. Loads raw text from corpus.txt
+2. Cleans and normalizes the text (lowercase, remove punctuation, etc.)
+3. Generates synthetic typos for training data
+4. Saves paired clean/noisy datasets
+
+Author: Ghost Type Corrector Team
+License: MIT
+"""
+
 import re
 import os
 import random
 import sys
-from tqdm import tqdm # Import tqdm for the progress bar
+from pathlib import Path
+from tqdm import tqdm
 
-def clean_line(text):
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+# Noise level: probability that a word will have a typo
+NOISE_LEVEL = 0.15
+
+# Minimum sentence length (in words) to keep
+MIN_SENTENCE_LENGTH = 3
+
+# Random seed for reproducibility
+RANDOM_SEED = 42
+
+
+# =============================================================================
+# TEXT CLEANING FUNCTIONS
+# =============================================================================
+
+def clean_line(text: str) -> str:
     """
-    Cleans a single line of text from the corpus.
-    - Removes the starting line number (e.g., "1 \t")
-    - Converts to lowercase
-    - Removes all punctuation, symbols, and standalone numbers
-    - Normalizes whitespace
-    """
+    Clean a single line of text from the corpus.
     
-    # 1. Strip the line number (e.g., "1 \t" or "10 \t")
+    Transformations:
+    - Remove line numbers (e.g., "1 \\t")
+    - Convert to lowercase
+    - Remove punctuation, symbols, and numbers
+    - Normalize whitespace
+    - Filter very short sentences
+    
+    Args:
+        text: Raw text line from corpus
+        
+    Returns:
+        Cleaned text string, or None if line should be skipped
+    """
+    # Remove line number prefix (e.g., "42\t")
     match = re.search(r'^\d+\t(.*)', text)
     if match:
         text = match.group(1)
     
-    # 2. Force to lowercase
+    # Convert to lowercase
     text = text.lower()
     
-    # 3. Remove punctuation, symbols, and numbers
-    # This regex [^a-z\s] means "find anything that is NOT (^) a letter (a-z) or whitespace (\s)"
+    # Remove everything except letters and spaces
     text = re.sub(r'[^a-z\s]', '', text)
     
-    # 4. Normalize whitespace (replace multiple spaces/tabs with one)
+    # Normalize whitespace (replace multiple spaces with single space)
     text = re.sub(r'\s+', ' ', text).strip()
     
-    # 5. Filter out very short or empty lines
-    if len(text.split()) < 3:
-        return None # Return None to indicate this line should be skipped
+    # Filter out very short sentences
+    if len(text.split()) < MIN_SENTENCE_LENGTH:
+        return None
     
     return text
 
-def add_noise_to_sentence(sentence, noise_level=0.15):
+
+def add_noise_to_sentence(sentence: str, noise_level: float = NOISE_LEVEL) -> str:
     """
-    Takes a clean sentence and randomly introduces typos (noise).
+    Add realistic typing errors to a sentence.
     
-    noise_level: The probability (e.g., 0.15 = 15%) that a word will be "noised".
+    Typo types:
+    - delete: Remove a random character
+    - insert: Insert a random character
+    - substitute: Replace a character with another
+    - swap: Swap two adjacent characters
+    
+    Args:
+        sentence: Clean input sentence
+        noise_level: Probability (0-1) that each word gets a typo
+        
+    Returns:
+        Sentence with synthetic typos
     """
-    
     words = sentence.split()
-    new_sentence_words = []
-    
-    # All possible letters for insertion/substitution
+    noised_words = []
     alphabet = 'abcdefghijklmnopqrstuvwxyz'
     
     for word in words:
-        # We only add noise if the word is long enough AND
-        # a random chance (between 0.0 and 1.0) is below our noise level
+        # Only add noise to longer words, with probability noise_level
         if random.random() < noise_level and len(word) > 3:
-            
-            # 1. Randomly pick a type of typo
             typo_type = random.choice(['delete', 'insert', 'substitute', 'swap'])
             
             if typo_type == 'delete':
+                # Remove a random character
                 pos = random.randint(0, len(word) - 1)
                 noised_word = word[:pos] + word[pos+1:]
-            
+                
             elif typo_type == 'insert':
+                # Insert a random character
                 pos = random.randint(0, len(word))
                 char = random.choice(alphabet)
                 noised_word = word[:pos] + char + word[pos:]
-            
+                
             elif typo_type == 'substitute':
+                # Replace a character with a random one
                 pos = random.randint(0, len(word) - 1)
                 char = random.choice(alphabet)
                 noised_word = word[:pos] + char + word[pos+1:]
-            
-            elif typo_type == 'swap':
+                
+            else:  # swap
+                # Swap two adjacent characters
                 if len(word) > 1:
                     pos = random.randint(0, len(word) - 2)
                     noised_word = word[:pos] + word[pos+1] + word[pos] + word[pos+2:]
                 else:
                     noised_word = word
             
-            new_sentence_words.append(noised_word)
-        
+            noised_words.append(noised_word)
         else:
-            new_sentence_words.append(word)
-            
-    return ' '.join(new_sentence_words)
+            # Keep original word
+            noised_words.append(word)
+    
+    return ' '.join(noised_words)
+
+
+# =============================================================================
+# MAIN PROCESSING PIPELINE
+# =============================================================================
 
 def main():
-    """
-    Main function to run the data preprocessing pipeline.
-    """
+    """Main data preprocessing pipeline."""
     
-    # Define our file paths
-    # Note: This script is in 'src', so we go up one ('..') to the 'ai_model' folder
-    base_dir = os.path.dirname(__file__)
-    data_dir = os.path.join(base_dir, '..', 'data')
+    print("=" * 70)
+    print("GHOST TYPE CORRECTOR - DATA PREPROCESSING")
+    print("=" * 70)
+    print()
     
-    input_corpus = os.path.join(data_dir, 'corpus.txt')
-    output_clean = os.path.join(data_dir, 'train_clean.txt')
-    output_noisy = os.path.join(data_dir, 'train_noisy.txt')
-
-    print(f"--- Starting Data Preprocessing ---")
-    print(f"Input corpus: {input_corpus}")
-    print(f"Output clean data: {output_clean}")
-    print(f"Output noisy data: {output_noisy}")
+    # Set random seed for reproducibility
+    random.seed(RANDOM_SEED)
+    print(f"Random seed: {RANDOM_SEED}")
+    print(f"Noise level: {NOISE_LEVEL * 100:.1f}%")
+    print()
     
-    try:
-        # Open the output files
-        with open(input_corpus, 'r', encoding='utf-8') as f_in, \
-             open(output_clean, 'w', encoding='utf-8') as f_clean, \
-             open(output_noisy, 'w', encoding='utf-8') as f_noisy:
+    # Define file paths
+    project_root = Path(__file__).parent.parent
+    data_dir = project_root / 'data'
+    
+    input_corpus = data_dir / 'corpus.txt'
+    output_clean = data_dir / 'train_clean.txt'
+    output_noisy = data_dir / 'train_noisy.txt'
+    
+    print(f"Input:  {input_corpus}")
+    print(f"Output: {output_clean}")
+    print(f"        {output_noisy}")
+    print()
+    
+    # Check if input file exists
+    if not input_corpus.exists():
+        print(f"ERROR: Input file not found!")
+        print(f"Expected location: {input_corpus}")
+        print()
+        print("Please place your corpus.txt file in the ai_model/data/ directory.")
+        sys.exit(1)
+    
+    # Count total lines for progress bar
+    print("Counting lines in corpus...")
+    with open(input_corpus, 'r', encoding='utf-8') as f:
+        total_lines = sum(1 for _ in f)
+    print(f"Found {total_lines:,} lines")
+    print()
+    
+    # Process corpus
+    print("Processing corpus...")
+    processed_count = 0
+    skipped_count = 0
+    
+    with open(input_corpus, 'r', encoding='utf-8') as f_in, \
+         open(output_clean, 'w', encoding='utf-8') as f_clean, \
+         open(output_noisy, 'w', encoding='utf-8') as f_noisy:
+        
+        for line in tqdm(f_in, total=total_lines, desc="Processing"):
+            # Clean the line
+            clean_sentence = clean_line(line)
             
-            # Use tqdm to show a progress bar
-            # We count the lines first to give tqdm a total
-            print("Counting lines in corpus (this may take a moment)...")
-            line_count = sum(1 for line in open(input_corpus, 'r', encoding='utf-8'))
-            print(f"Found {line_count} lines.")
-            
-            print("Processing corpus...")
-            # Rewind the file (or just use the new f_in)
-            f_in.seek(0)
-            
-            for line in tqdm(f_in, total=line_count, desc="Cleaning and Noising"):
-                # 1. Clean the line
-                clean_sentence = clean_line(line)
+            if clean_sentence:
+                # Generate noisy version
+                noisy_sentence = add_noise_to_sentence(clean_sentence)
                 
-                # 2. Skip if the line was too short (clean_line returned None)
-                if clean_sentence:
-                    # 3. Create the noisy version
-                    noisy_sentence = add_noise_to_sentence(clean_sentence)
-                    
-                    # 4. Write to our two new files
-                    f_clean.write(clean_sentence + '\n')
-                    f_noisy.write(noisy_sentence + '\n')
+                # Write to output files
+                f_clean.write(clean_sentence + '\n')
+                f_noisy.write(noisy_sentence + '\n')
+                
+                processed_count += 1
+            else:
+                skipped_count += 1
+    
+    # Summary
+    print()
+    print("=" * 70)
+    print("PREPROCESSING COMPLETE")
+    print("=" * 70)
+    print(f"Processed: {processed_count:,} sentences")
+    print(f"Skipped:   {skipped_count:,} sentences (too short)")
+    print()
+    print(f"Output files created:")
+    print(f"  ✓ {output_clean}")
+    print(f"  ✓ {output_noisy}")
+    print()
+    
+    # Show sample output
+    print("Sample pairs (first 3):")
+    print("-" * 70)
+    with open(output_clean, 'r', encoding='utf-8') as f_clean, \
+         open(output_noisy, 'r', encoding='utf-8') as f_noisy:
+        for i in range(min(3, processed_count)):
+            clean = f_clean.readline().strip()
+            noisy = f_noisy.readline().strip()
+            print(f"{i+1}. Clean: {clean}")
+            print(f"   Noisy: {noisy}")
+            print()
 
-        print("\n--- Data Preprocessing Complete ---")
-        print("Created 'train_clean.txt' and 'train_noisy.txt' in ai_model/data/")
-
-    except FileNotFoundError:
-        print(f"ERROR: Could not find '{input_corpus}'")
-        print("Please make sure the 'corpus.txt' file is in the 'ai_model/data/' directory.")
-    except Exception as e:
-        print(f"\nAn error occurred: {e}")
 
 if __name__ == "__main__":
-    # This block ensures the 'main' function is only run
-    # when you execute this file directly as a script
     main()
-
