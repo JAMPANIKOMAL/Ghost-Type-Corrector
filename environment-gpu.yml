@@ -50,19 +50,26 @@ dependencies:
       # TensorFlow 2.10 is the last version with native Windows GPU support
       - tensorflow==2.10.1
       
-      # TensorFlow.js converter
-      - tensorflowjs==4.4.0
-      
       # Additional utilities
       - protobuf<3.20
+      
+      # Note: tensorflowjs will be installed manually after environment creation
+      # to avoid tensorflow-decision-forests dependency conflict
       
 # =============================================================================
 # POST-INSTALLATION STEPS (IMPORTANT!)
 # =============================================================================
-# After creating the environment, install CUDA Toolkit and cuDNN:
+# After creating the environment, run these commands:
 #
+# 1. Activate environment:
 #   conda activate ghost-corrector-gpu
-#   conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0
+#
+# 2. Install CUDA Toolkit and cuDNN:
+#   conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0 -y
+#
+# 3. Install TensorFlowJS (avoiding dependency conflicts):
+#   pip install tensorflowjs==4.4.0 --no-deps
+#   pip install packaging importlib-resources tensorflow-hub
 #
 # These specific versions are required for TensorFlow 2.10 GPU support.
 # =============================================================================

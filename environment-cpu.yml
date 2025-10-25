@@ -46,11 +46,11 @@ dependencies:
 
   # Install via pip for precise version control
   - pip:
-      # TensorFlow.js converter
-      - tensorflowjs==4.4.0
-      
       # Additional utilities
       - protobuf<3.20
+      
+      # Note: tensorflowjs will be installed manually after environment creation
+      # to avoid tensorflow-decision-forests dependency conflict
 
 # =============================================================================
 # USAGE NOTES
