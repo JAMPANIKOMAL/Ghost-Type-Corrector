@@ -1,313 +1,316 @@
 {
   "format": "layers-model",
-  "generatedBy": "Ghost Type Corrector Manual Converter",
-  "convertedBy": "Python 3.10",
+  "generatedBy": "TensorFlow.js Converter v3.18.0",
+  "convertedBy": "Ghost Type Corrector (Fixed)",
   "modelTopology": {
-    "name": "autocorrect_seq2seq",
-    "layers": [
-      {
-        "class_name": "InputLayer",
-        "config": {
-          "batch_input_shape": [
-            null,
-            101
-          ],
-          "dtype": "float32",
-          "sparse": false,
-          "ragged": false,
-          "name": "encoder_input"
+    "className": "Functional",
+    "config": {
+      "name": "autocorrect_seq2seq",
+      "layers": [
+        {
+          "className": "InputLayer",
+          "config": {
+            "batchInputShape": [
+              null,
+              101
+            ],
+            "dtype": "float32",
+            "sparse": false,
+            "ragged": false,
+            "name": "encoder_input"
+          },
+          "name": "encoder_input",
+          "inboundNodes": []
         },
-        "name": "encoder_input",
-        "inbound_nodes": []
-      },
-      {
-        "class_name": "InputLayer",
-        "config": {
-          "batch_input_shape": [
-            null,
-            101
-          ],
-          "dtype": "float32",
-          "sparse": false,
-          "ragged": false,
-          "name": "decoder_input"
+        {
+          "className": "InputLayer",
+          "config": {
+            "batchInputShape": [
+              null,
+              101
+            ],
+            "dtype": "float32",
+            "sparse": false,
+            "ragged": false,
+            "name": "decoder_input"
+          },
+          "name": "decoder_input",
+          "inboundNodes": []
         },
-        "name": "decoder_input",
-        "inbound_nodes": []
-      },
-      {
-        "class_name": "Embedding",
-        "config": {
+        {
+          "className": "Embedding",
+          "config": {
+            "name": "encoder_embedding",
+            "trainable": true,
+            "batchInputShape": [
+              null,
+              null
+            ],
+            "dtype": "float32",
+            "inputDim": 30,
+            "outputDim": 256,
+            "embeddingsInitializer": {
+              "className": "RandomUniform",
+              "config": {
+                "minval": -0.05,
+                "maxval": 0.05,
+                "seed": null
+              }
+            },
+            "embeddingsRegularizer": null,
+            "activityRegularizer": null,
+            "embeddingsConstraint": null,
+            "maskZero": true,
+            "inputLength": null
+          },
           "name": "encoder_embedding",
-          "trainable": true,
-          "batch_input_shape": [
-            null,
-            null
-          ],
-          "dtype": "float32",
-          "input_dim": 30,
-          "output_dim": 256,
-          "embeddings_initializer": {
-            "class_name": "RandomUniform",
-            "config": {
-              "minval": -0.05,
-              "maxval": 0.05,
-              "seed": null
-            }
-          },
-          "embeddings_regularizer": null,
-          "activity_regularizer": null,
-          "embeddings_constraint": null,
-          "mask_zero": true,
-          "input_length": null
-        },
-        "name": "encoder_embedding",
-        "inbound_nodes": [
-          [
+          "inboundNodes": [
             [
-              "encoder_input",
-              0,
-              0,
-              {}
+              [
+                "encoder_input",
+                0,
+                0,
+                {}
+              ]
             ]
           ]
-        ]
-      },
-      {
-        "class_name": "Embedding",
-        "config": {
+        },
+        {
+          "className": "Embedding",
+          "config": {
+            "name": "decoder_embedding",
+            "trainable": true,
+            "batchInputShape": [
+              null,
+              null
+            ],
+            "dtype": "float32",
+            "inputDim": 30,
+            "outputDim": 256,
+            "embeddingsInitializer": {
+              "className": "RandomUniform",
+              "config": {
+                "minval": -0.05,
+                "maxval": 0.05,
+                "seed": null
+              }
+            },
+            "embeddingsRegularizer": null,
+            "activityRegularizer": null,
+            "embeddingsConstraint": null,
+            "maskZero": true,
+            "inputLength": null
+          },
           "name": "decoder_embedding",
-          "trainable": true,
-          "batch_input_shape": [
-            null,
-            null
-          ],
-          "dtype": "float32",
-          "input_dim": 30,
-          "output_dim": 256,
-          "embeddings_initializer": {
-            "class_name": "RandomUniform",
-            "config": {
-              "minval": -0.05,
-              "maxval": 0.05,
-              "seed": null
-            }
-          },
-          "embeddings_regularizer": null,
-          "activity_regularizer": null,
-          "embeddings_constraint": null,
-          "mask_zero": true,
-          "input_length": null
-        },
-        "name": "decoder_embedding",
-        "inbound_nodes": [
-          [
+          "inboundNodes": [
             [
-              "decoder_input",
-              0,
-              0,
-              {}
+              [
+                "decoder_input",
+                0,
+                0,
+                {}
+              ]
             ]
           ]
-        ]
-      },
-      {
-        "class_name": "LSTM",
-        "config": {
+        },
+        {
+          "className": "LSTM",
+          "config": {
+            "name": "encoder_lstm",
+            "trainable": true,
+            "dtype": "float32",
+            "returnSequences": false,
+            "returnState": true,
+            "goBackwards": false,
+            "stateful": false,
+            "unroll": false,
+            "timeMajor": false,
+            "units": 512,
+            "activation": "tanh",
+            "recurrentActivation": "sigmoid",
+            "useBias": true,
+            "kernelInitializer": {
+              "className": "GlorotUniform",
+              "config": {
+                "seed": null
+              },
+              "sharedObjectId": 6
+            },
+            "recurrentInitializer": {
+              "className": "Orthogonal",
+              "config": {
+                "gain": 1.0,
+                "seed": null
+              },
+              "sharedObjectId": 7
+            },
+            "biasInitializer": {
+              "className": "Zeros",
+              "config": {},
+              "sharedObjectId": 8
+            },
+            "unitForgetBias": true,
+            "kernelRegularizer": null,
+            "recurrentRegularizer": null,
+            "biasRegularizer": null,
+            "activityRegularizer": null,
+            "kernelConstraint": null,
+            "recurrentConstraint": null,
+            "biasConstraint": null,
+            "dropout": 0.0,
+            "recurrentDropout": 0.0,
+            "implementation": 2
+          },
           "name": "encoder_lstm",
-          "trainable": true,
-          "dtype": "float32",
-          "return_sequences": false,
-          "return_state": true,
-          "go_backwards": false,
-          "stateful": false,
-          "unroll": false,
-          "time_major": false,
-          "units": 512,
-          "activation": "tanh",
-          "recurrent_activation": "sigmoid",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "GlorotUniform",
-            "config": {
-              "seed": null
-            },
-            "shared_object_id": 6
-          },
-          "recurrent_initializer": {
-            "class_name": "Orthogonal",
-            "config": {
-              "gain": 1.0,
-              "seed": null
-            },
-            "shared_object_id": 7
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {},
-            "shared_object_id": 8
-          },
-          "unit_forget_bias": true,
-          "kernel_regularizer": null,
-          "recurrent_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "recurrent_constraint": null,
-          "bias_constraint": null,
-          "dropout": 0.0,
-          "recurrent_dropout": 0.0,
-          "implementation": 2
-        },
-        "name": "encoder_lstm",
-        "inbound_nodes": [
-          [
+          "inboundNodes": [
             [
-              "encoder_embedding",
-              0,
-              0,
-              {}
+              [
+                "encoder_embedding",
+                0,
+                0,
+                {}
+              ]
             ]
           ]
-        ]
-      },
-      {
-        "class_name": "LSTM",
-        "config": {
+        },
+        {
+          "className": "LSTM",
+          "config": {
+            "name": "decoder_lstm",
+            "trainable": true,
+            "dtype": "float32",
+            "returnSequences": true,
+            "returnState": true,
+            "goBackwards": false,
+            "stateful": false,
+            "unroll": false,
+            "timeMajor": false,
+            "units": 512,
+            "activation": "tanh",
+            "recurrentActivation": "sigmoid",
+            "useBias": true,
+            "kernelInitializer": {
+              "className": "GlorotUniform",
+              "config": {
+                "seed": null
+              },
+              "sharedObjectId": 11
+            },
+            "recurrentInitializer": {
+              "className": "Orthogonal",
+              "config": {
+                "gain": 1.0,
+                "seed": null
+              },
+              "sharedObjectId": 12
+            },
+            "biasInitializer": {
+              "className": "Zeros",
+              "config": {},
+              "sharedObjectId": 13
+            },
+            "unitForgetBias": true,
+            "kernelRegularizer": null,
+            "recurrentRegularizer": null,
+            "biasRegularizer": null,
+            "activityRegularizer": null,
+            "kernelConstraint": null,
+            "recurrentConstraint": null,
+            "biasConstraint": null,
+            "dropout": 0.0,
+            "recurrentDropout": 0.0,
+            "implementation": 2
+          },
           "name": "decoder_lstm",
-          "trainable": true,
-          "dtype": "float32",
-          "return_sequences": true,
-          "return_state": true,
-          "go_backwards": false,
-          "stateful": false,
-          "unroll": false,
-          "time_major": false,
-          "units": 512,
-          "activation": "tanh",
-          "recurrent_activation": "sigmoid",
-          "use_bias": true,
-          "kernel_initializer": {
-            "class_name": "GlorotUniform",
-            "config": {
-              "seed": null
-            },
-            "shared_object_id": 11
-          },
-          "recurrent_initializer": {
-            "class_name": "Orthogonal",
-            "config": {
-              "gain": 1.0,
-              "seed": null
-            },
-            "shared_object_id": 12
-          },
-          "bias_initializer": {
-            "class_name": "Zeros",
-            "config": {},
-            "shared_object_id": 13
-          },
-          "unit_forget_bias": true,
-          "kernel_regularizer": null,
-          "recurrent_regularizer": null,
-          "bias_regularizer": null,
-          "activity_regularizer": null,
-          "kernel_constraint": null,
-          "recurrent_constraint": null,
-          "bias_constraint": null,
-          "dropout": 0.0,
-          "recurrent_dropout": 0.0,
-          "implementation": 2
-        },
-        "name": "decoder_lstm",
-        "inbound_nodes": [
-          [
+          "inboundNodes": [
             [
-              "decoder_embedding",
-              0,
-              0,
-              {}
-            ],
-            [
-              "encoder_lstm",
-              0,
-              1,
-              {}
-            ],
-            [
-              "encoder_lstm",
-              0,
-              2,
-              {}
+              [
+                "decoder_embedding",
+                0,
+                0,
+                {}
+              ],
+              [
+                "encoder_lstm",
+                0,
+                1,
+                {}
+              ],
+              [
+                "encoder_lstm",
+                0,
+                2,
+                {}
+              ]
             ]
           ]
-        ]
-      },
-      {
-        "class_name": "TimeDistributed",
-        "config": {
-          "name": "output_dense",
-          "trainable": true,
-          "dtype": "float32",
-          "layer": {
-            "class_name": "Dense",
-            "config": {
-              "name": "dense",
-              "trainable": true,
-              "dtype": "float32",
-              "units": 30,
-              "activation": "softmax",
-              "use_bias": true,
-              "kernel_initializer": {
-                "class_name": "GlorotUniform",
-                "config": {
-                  "seed": null
-                }
-              },
-              "bias_initializer": {
-                "class_name": "Zeros",
-                "config": {}
-              },
-              "kernel_regularizer": null,
-              "bias_regularizer": null,
-              "activity_regularizer": null,
-              "kernel_constraint": null,
-              "bias_constraint": null
+        },
+        {
+          "className": "TimeDistributed",
+          "config": {
+            "name": "output_dense",
+            "trainable": true,
+            "dtype": "float32",
+            "layer": {
+              "className": "Dense",
+              "config": {
+                "name": "dense",
+                "trainable": true,
+                "dtype": "float32",
+                "units": 30,
+                "activation": "softmax",
+                "useBias": true,
+                "kernelInitializer": {
+                  "className": "GlorotUniform",
+                  "config": {
+                    "seed": null
+                  }
+                },
+                "biasInitializer": {
+                  "className": "Zeros",
+                  "config": {}
+                },
+                "kernelRegularizer": null,
+                "biasRegularizer": null,
+                "activityRegularizer": null,
+                "kernelConstraint": null,
+                "biasConstraint": null
+              }
             }
-          }
-        },
-        "name": "output_dense",
-        "inbound_nodes": [
-          [
+          },
+          "name": "output_dense",
+          "inboundNodes": [
             [
-              "decoder_lstm",
-              0,
-              0,
-              {}
+              [
+                "decoder_lstm",
+                0,
+                0,
+                {}
+              ]
             ]
           ]
-        ]
-      }
-    ],
-    "input_layers": [
-      [
-        "encoder_input",
-        0,
-        0
+        }
       ],
-      [
-        "decoder_input",
-        0,
-        0
+      "inputLayers": [
+        [
+          "encoder_input",
+          0,
+          0
+        ],
+        [
+          "decoder_input",
+          0,
+          0
+        ]
+      ],
+      "outputLayers": [
+        [
+          "output_dense",
+          0,
+          0
+        ]
       ]
-    ],
-    "output_layers": [
-      [
-        "output_dense",
-        0,
-        0
-      ]
-    ]
+    }
   },
   "weightsManifest": [
     {

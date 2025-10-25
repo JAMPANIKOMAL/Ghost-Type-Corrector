@@ -74,7 +74,18 @@
 
         const messageType = event.data.type;
 
-        if (messageType === 'GTC_READY') {
+        if (messageType === 'GTC_SANDBOX_LOADED') {
+            // Sandbox iframe is loaded, now send initialization data
+            console.log("Content Script: Sandbox loaded, sending initialization data...");
+            const tokenizerUrl = chrome.runtime.getURL('data/tokenizer_config.json');
+            const modelUrl = chrome.runtime.getURL('model/model.json');
+            
+            sandboxIframe.contentWindow.postMessage({
+                type: 'GTC_INIT',
+                tokenizerUrl: tokenizerUrl,
+                modelUrl: modelUrl
+            }, '*');
+        } else if (messageType === 'GTC_READY') {
             // AI model is loaded and ready to receive prediction requests
             sandboxReady = true;
             console.log("Content Script: Sandbox is ready! AI model loaded");

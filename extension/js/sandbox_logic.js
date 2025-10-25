@@ -115,12 +115,14 @@ function predictCorrection(inputWord) {
 
 // --- Initialization ---
 
-async function initialize() {
+async function initialize(tokenizerUrl, modelUrl) {
     console.log("Sandbox: Initializing AI resources...");
+    console.log("Sandbox: Tokenizer URL:", tokenizerUrl);
+    console.log("Sandbox: Model URL:", modelUrl);
+    
     try {
         // 1. Load Tokenizer Configuration
-        const tokenizerUrl = chrome.runtime.getURL('data/tokenizer_config.json');
-        console.log("Sandbox: Fetching tokenizer config from:", tokenizerUrl);
+        console.log("Sandbox: Fetching tokenizer config...");
         
         const tokenizerResponse = await fetch(tokenizerUrl);
         if (!tokenizerResponse.ok) {
@@ -149,10 +151,24 @@ async function initialize() {
             throw new Error("TensorFlow.js library (tf) not found in sandbox. Check that tf.min.js is loaded.");
         }
         
-        const modelUrl = chrome.runtime.getURL('model/model.json');
-        console.log("Sandbox: Loading TensorFlow.js model from:", modelUrl);
+        console.log("Sandbox: Loading TensorFlow.js model...");
         
-        model = await tf.loadLayersModel(modelUrl);
+        // Try to load as a graph model first (more compatible with converted Keras models)
+        try {
+            model = await tf.loadGraphModel(modelUrl);
+            console.log("Sandbox: Model loaded as GraphModel");
+        } catch (graphError) {
+            console.log("Sandbox: GraphModel loading failed, trying LayersModel...");
+            console.log("  Error:", graphError.message);
+            
+            try {
+                model = await tf.loadLayersModel(modelUrl);
+                console.log("Sandbox: Model loaded as LayersModel");
+            } catch (layersError) {
+                throw new Error(`Model loading failed: ${layersError.message}`);
+            }
+        }
+        
         console.log("Sandbox: TensorFlow.js model loaded successfully");
 
         // 3. Model Warmup (optional but recommended for performance)
@@ -192,7 +208,12 @@ window.addEventListener('message', async (event) => {
         return;
     }
 
-    if (event.data.type === 'GTC_PREDICT') {
+    if (event.data.type === 'GTC_INIT') {
+        // Receive initialization URLs from content script
+        const { tokenizerUrl, modelUrl } = event.data;
+        console.log("Sandbox: Received init message from content script");
+        initialize(tokenizerUrl, modelUrl);
+    } else if (event.data.type === 'GTC_PREDICT') {
         const originalWord = event.data.word;
         
         if (!originalWord || typeof originalWord !== 'string') {
@@ -212,5 +233,6 @@ window.addEventListener('message', async (event) => {
     }
 });
 
-// Start initialization when the sandbox loads
-initialize();
+// Signal to parent that sandbox is loaded and ready to receive init message
+console.log("Sandbox: Script loaded, waiting for initialization message...");
+window.parent.postMessage({ type: 'GTC_SANDBOX_LOADED' }, '*');

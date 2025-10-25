@@ -11,7 +11,22 @@ This document summarizes all the fixes applied to the Chrome extension to resolv
 
 ## Issues Fixed
 
-### 1. Manifest V3 Compliance Issues
+### 1. Sandbox Chrome API Access Issue (CRITICAL)
+
+**Problem**: The sandboxed iframe doesn't have access to `chrome.runtime.getURL()` API, causing initialization to fail with "Cannot read properties of undefined (reading 'getURL')".
+
+**Solution**:
+- ✅ Modified sandbox to accept resource URLs via postMessage from content script
+- ✅ Added new message type `GTC_INIT` to pass URLs from content script to sandbox
+- ✅ Added `GTC_SANDBOX_LOADED` message to signal when sandbox is ready for initialization
+- ✅ Content script now sends tokenizer and model URLs after sandbox loads
+- ✅ Removed all `chrome.runtime` API calls from sandbox_logic.js
+
+**Files**: `extension/js/sandbox_logic.js`, `extension/js/content.js`
+
+---
+
+### 2. Manifest V3 Compliance Issues
 
 **Problem**: The `manifest.json` was missing required fields and proper permission declarations for Manifest V3.
 
