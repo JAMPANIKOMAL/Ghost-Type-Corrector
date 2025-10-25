@@ -1,24 +1,24 @@
-# Ghost Type Corrector - Complete Setup Guide
+# Installation Guide
+
+Complete setup instructions for Ghost Type Corrector from environment creation to model deployment.
 
 ## Prerequisites
 
-- **Anaconda** or **Miniconda** installed
-- **NVIDIA GPU** with CUDA support (optional, for faster training)
-- **10GB free disk space**
-- **Corpus data** (1M sentences recommended)
+- Anaconda or Miniconda
+- NVIDIA GPU with CUDA support (optional, recommended for faster training)
+- 10GB free disk space
+- Text corpus data (100K+ sentences recommended)
 
----
+## Installation Steps
 
-## Complete Setup from Scratch
-
-### Step 1: Clone or Download Project
+### 1. Clone Repository
 
 ```powershell
 git clone https://github.com/JAMPANIKOMAL/Ghost-Type-Corrector.git
 cd Ghost-Type-Corrector
 ```
 
-### Step 2: Create Conda Environment
+### 2. Create Conda Environment
 
 **For GPU Training (Recommended):**
 
@@ -49,7 +49,7 @@ conda activate ghost-corrector-cpu
 pip install tensorflowjs==3.18.0
 ```
 
-### Step 3: Verify GPU Detection (GPU only)
+### 3. Verify GPU Detection (GPU only)
 
 ```powershell
 python -c "import tensorflow as tf; print('GPU:', tf.config.list_physical_devices('GPU'))"
@@ -60,7 +60,7 @@ Expected output:
 GPU: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
 ```
 
-### Step 4: Prepare Training Data
+### 4. Prepare Training Data
 
 Place your corpus file at:
 ```
@@ -85,7 +85,7 @@ natural language processing enables communication
 - Download "English (GB) - 1M sentences" dataset
 - Extract and save as `corpus.txt`
 
-### Step 5: Run Training Pipeline
+### 5. Run Training Pipeline
 
 ```powershell
 cd ai_model\src
@@ -100,7 +100,7 @@ python 02_model_training.py
 python convert_direct.py
 ```
 
-### Step 6: Verify Output
+### 6. Verify Output
 
 Check that these files were created:
 
@@ -119,7 +119,7 @@ extension/model/
 
 ---
 
-## Configuration Options
+## Training Configuration
 
 ### Data Preprocessing (`01_data_preprocessing.py`)
 
@@ -345,5 +345,4 @@ For issues or questions:
 ---
 
 **Last Updated:** October 25, 2025  
-**Tested On:** Windows 11, NVIDIA RTX 3050, Python 3.10.19  
-**Version:** 1.0.0
+**Tested On:** Windows 11, NVIDIA RTX 3050, Python 3.10.13

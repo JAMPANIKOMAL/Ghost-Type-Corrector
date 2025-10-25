@@ -35,8 +35,8 @@ extension/model/*.bin
 extension/model/model.json
 
 # Notebooks
-.ipynb_checkpoints/
-*.ipynb
+# .ipynb_checkpoints/
+# *.ipynb
 
 # Node.js
 node_modules/

@@ -1,122 +1,98 @@
 # Ghost Type Corrector
 
-A next-generation, AI-powered browser extension that provides truly invisible, contextual autocorrection, bringing the seamless "mobile keyboard" experience to your desktop browser.
+AI-powered browser extension providing invisible, contextual autocorrection with a seamless mobile keyboard experience on desktop browsers.
 
-This project is an advanced rebuild of an initial prototype: https://github.com/JAMPANIKOMAL/invisible-autocorrect-extension, replacing the original frequency-dictionary "brain" with a character-level, sequence-to-sequence (seq2seq) neural network.
+Advanced rebuild of the initial prototype (https://github.com/JAMPANIKOMAL/invisible-autocorrect-extension) using a character-level sequence-to-sequence neural network instead of frequency dictionaries.
 
-## Core Features
+## Features
 
-- **Invisible Correction:** No distracting popups, underlines, or suggestions. Typos are corrected instantly and silently the moment you press the spacebar.
-
-- **Contextual AI:** The model understands context, allowing it to fix both spelling mistakes ("wrod") and grammatical/contextual errors ("I went too the store").
-
-- **Mobile-Style Undo:** The signature feature: if the AI makes an unwanted correction, simply press Backspace once to instantly undo the correction and revert to your original typing.
-
-- **Browser-Native Feel:** The extension disables the browser's default red-squiggle spellcheck, providing a clean, seamless, and native-feeling typing experience.
+- **Invisible Correction:** No popups or underlines. Typos are corrected instantly on spacebar press.
+- **Contextual AI:** Fixes spelling errors and grammatical mistakes using context understanding.
+- **Mobile-Style Undo:** Press Backspace once to revert unwanted corrections.
+- **Browser-Native Feel:** Disables default spellcheck for a clean typing experience.
 
 ## Quick Start
 
-### 1. Setup Environment
-
-Choose GPU (faster) or CPU (universal):
-
-**GPU Training (Recommended):**
 ```powershell
+# 1. Create environment
 conda env create -f environment-gpu.yml
 conda activate ghost-corrector-gpu
-conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0
-```
+conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0 -y
+pip install tensorflowjs==3.18.0
 
-**CPU Training:**
-```powershell
-conda env create -f environment-cpu.yml
-conda activate ghost-corrector-cpu
-```
-
-### 2. Train the Model
-
-```powershell
-cd ai_model/src
-
-# Step 1: Prepare data
+# 2. Train model
+cd ai_model\src
 python 01_data_preprocessing.py
-
-# Step 2: Train model (5-50 minutes depending on hardware)
 python 02_model_training.py
-
-# Step 3: Convert to TensorFlow.js
-python 03_model_conversion.py
+python convert_direct.py
 ```
 
-**For detailed instructions, see [docs/SETUP.md](docs/SETUP.md)**
+See [docs/QUICKSTART.md](docs/QUICKSTART.md) for detailed commands.
 
----
+## Documentation
 
-## Project Status
+**Complete documentation available in the `docs/` folder:**
 
-**Complete:**
-- Data preprocessing pipeline
-- Seq2seq LSTM model architecture  
-- GPU-accelerated training support
-- TensorFlow.js conversion
-- Conda environment configurations
-
-**In Development:**
-- Browser extension JavaScript
-- Content script for autocorrection
-- User interface and settings
-
----
+- **[docs/README.md](docs/README.md)** - Documentation index and navigation guide
+- **[docs/INSTALLATION.md](docs/INSTALLATION.md)** - Complete setup instructions
+- **[docs/QUICKSTART.md](docs/QUICKSTART.md)** - Fast reference commands  
+- **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** - Training parameters and tuning
+- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[docs/API.md](docs/API.md)** - Technical reference and code documentation
 
 ## Project Structure
 
 ```
-Ghost Type Corrector/
-├── environment-gpu.yml              # Conda env for GPU training
-├── environment-cpu.yml              # Conda env for CPU training
-├── README.md                        # This file
-├── LICENSE                          # MIT License
-│
+Ghost-Type-Corrector/
 ├── docs/                            # Documentation
-│   ├── SETUP.md                     # Complete setup and training guide
-│   ├── QUICKSTART.md                # Quick reference commands
-│   ├── WORKFLOW.md                  # Visual workflow diagrams
-│   └── CLEANUP_SUMMARY.md           # Project reorganization notes
+│   ├── INSTALLATION.md              # Complete setup guide
+│   ├── QUICKSTART.md                # Fast reference
+│   ├── CONFIGURATION.md             # Parameter tuning
+│   ├── TROUBLESHOOTING.md           # Common issues
+│   └── API.md                       # Technical reference
 │
-├── ai_model/                        # AI model development
-│   ├── src/                         # Source code
-│   │   ├── 01_data_preprocessing.py # Clean data & generate typos
-│   │   ├── 02_model_training.py     # Train seq2seq LSTM model
-│   │   └── 03_model_conversion.py   # Convert to TensorFlow.js
-│   │
-│   ├── data/                        # Training data
-│   │   ├── corpus.txt               # Raw text (you provide)
-│   │   ├── train_clean.txt          # Clean sentences (generated)
-│   │   ├── train_noisy.txt          # Noisy sentences (generated)
-│   │   └── tokenizer_config.json    # Vocabulary (generated)
-│   │
-│   ├── notebooks/                   # Jupyter notebooks for research
-│   │   ├── 01_data_exploration.ipynb
-│   │   └── 02_model_building.ipynb
-│   │
+├── ai_model/                        # Model development
+│   ├── src/
+│   │   ├── 01_data_preprocessing.py # Data cleaning and typo generation
+│   │   ├── 02_model_training.py     # Seq2seq LSTM training
+│   │   └── convert_direct.py        # TensorFlow.js conversion
+│   ├── data/                        # Training data (generated)
+│   ├── notebooks/                   # Research notebooks
 │   └── autocorrect_model.h5         # Trained model (generated)
 │
-└── extension/                       # Browser extension
-    ├── model/                       # TensorFlow.js model (generated)
-    │   ├── model.json               # Model architecture
-    │   └── *.bin                    # Model weights
-    ├── assets/                      # Icons and static files
-    │   └── icons/
-    ├── js/                          # Extension JavaScript
-    │   └── lib/
-    └── manifest.json                # Extension configuration
+├── extension/                       # Browser extension
+│   ├── model/                       # TensorFlow.js model (generated)
+│   ├── assets/
+│   ├── js/
+│   └── manifest.json
+│
+├── environment-gpu.yml              # GPU training environment
+├── environment-cpu.yml              # CPU training environment
+├── README.md                        # This file
+└── LICENSE                          # MIT License
 ```
+
+## Technical Details
+
+- **Model:** Character-level sequence-to-sequence LSTM (encoder-decoder)
+- **Framework:** TensorFlow 2.10 with Keras API
+- **Deployment:** TensorFlow.js for browser inference
+- **Training:** GPU-accelerated (CUDA 11.2) or CPU
+- **Dataset:** Leipzig Corpora Collection (British English, 1M sentences)
+
+## Performance
+
+| Hardware    | Training Time | Model Size | Accuracy |
+|-------------|---------------|------------|----------|
+| RTX 3080    | 5 min         | 3 MB       | 60-70%   |
+| RTX 3050    | 7 min         | 3 MB       | 60-70%   |
+| Intel i7    | 50 min        | 3 MB       | 60-70%   |
 
 ## Acknowledgements
 
-- Development: This project is being developed with the assistance of Google's Gemini.
-- Dataset: The AI model is trained on the British English (en_GB) corpus provided by the Leipzig Corpora Collection, Leipzig University. We are using the eng-uk_web-public_2018_1M (1 million sentences) dataset.
+- Development assisted by Google Gemini
+- Dataset: Leipzig Corpora Collection, Leipzig University
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+MIT License - See LICENSE file for details.
