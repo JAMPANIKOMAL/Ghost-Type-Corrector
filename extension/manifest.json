@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Ghost Type Corrector",
+  "version": "1.0.0",
+  "description": "AI-powered invisible autocorrect with backspace-to-undo functionality.",
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "js/lib/tf.min.js",   // TensorFlow.js library
+        "js/override.js",     // Script to disable native spellcheck
+        "js/content.js"       // Main script with AI and UX logic
+      ],
+      "run_at": "document_idle" // Run scripts after the page is mostly loaded
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "model/model.json",   // Make model files accessible to the content script
+        "model/*.bin"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "permissions": [
+    "scripting",        // Needed to interact with page content
+    "activeTab"         // General permission often needed
+  ],
+  "host_permissions": [
+    "<all_urls>"        // Allow scripts to run on all websites
+  ]
+}
