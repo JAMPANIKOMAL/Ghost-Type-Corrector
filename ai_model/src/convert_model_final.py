@@ -53,13 +53,26 @@ except Exception as e:
 # Step 2: Save as SavedModel
 print("Step 2: Converting to SavedModel format...")
 try:
+    # Remove existing directory with better error handling
     if savedmodel_dir.exists():
-        shutil.rmtree(savedmodel_dir)
+        print(f"  Removing existing directory...")
+        try:
+            shutil.rmtree(savedmodel_dir)
+        except PermissionError:
+            # Try harder on Windows
+            import time
+            time.sleep(0.5)
+            shutil.rmtree(savedmodel_dir, ignore_errors=True)
+            if savedmodel_dir.exists():
+                print("  ⚠ Could not fully remove old directory, trying to continue...")
+    
     model.save(str(savedmodel_dir), save_format='tf')
     print(f"✓ SavedModel created at {savedmodel_dir}")
     print()
 except Exception as e:
     print(f"✗ Failed to create SavedModel: {e}")
+    print("\nTry manually deleting this folder and run again:")
+    print(f"  {savedmodel_dir}")
     sys.exit(1)
 
 # Step 3: Convert to TensorFlow.js

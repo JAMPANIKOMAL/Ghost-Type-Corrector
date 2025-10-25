@@ -40,7 +40,11 @@ def find_and_patch():
         ],
         'write_weights.py': [
             ('np.uint8, np.uint16, np.bool, np.object]', 
-             'np.uint8, np.uint16, bool, object]')
+             'np.uint8, np.uint16, bool, object]'),
+            ('if data.dtype == np.object:', 
+             'if data.dtype == object:'),
+            ('data.dtype == np.bool', 
+             'data.dtype == bool')
         ]
     }
     

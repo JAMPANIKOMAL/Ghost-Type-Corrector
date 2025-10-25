@@ -37,8 +37,8 @@ function encodeInput(text) {
 }
 
 /**
- * Generates the corrected word using the loaded Keras model.
- * This is the core Seq2Seq inference loop.
+ * Generates the corrected word using the loaded TensorFlow.js Graph Model.
+ * This is the core Seq2Seq inference function.
  * @param {string} inputWord - The word to correct (typo)
  * @returns {string|null} The predicted correct word, or null if no correction
  */
@@ -48,67 +48,53 @@ function predictCorrection(inputWord) {
     try {
         // Use tf.tidy to automatically clean up intermediate tensors
         return tf.tidy(() => {
-            // 1. Prepare Encoder Input (the typo)
+            // 1. Prepare both inputs for the model
             const encoderInput = encodeInput(inputWord);
             
-            // 2. Get initial decoder state from encoder
-            const [encoderOutput, stateH, stateC] = model.predict(encoderInput);
-
-            let decodedSequence = [startTokenIndex]; // Start with <start> token
-            let stopCondition = false;
-            let correctedWord = '';
-            let step = 0;
-            const maxSteps = maxSeqLength - 2; // Prevent infinite loops
+            // 2. Prepare decoder input (starts with <start> token, padded to maxSeqLength)
+            const decoderSequence = new Array(maxSeqLength).fill(padTokenIndex);
+            decoderSequence[0] = startTokenIndex;
+            const decoderInput = tf.tensor2d([decoderSequence], [1, maxSeqLength], 'float32');
             
-            let decoderInput = tf.tensor2d([decodedSequence.map(i => i)], [1, maxSeqLength], 'float32');
-            let states = [stateH, stateC];
-
-            // 3. Decoding Loop: Generate one character at a time
-            while (!stopCondition && step < maxSteps) {
-                // Prediction step
-                const [outputTokens, h, c] = model.predict([decoderInput, ...states]);
+            // 3. Run the model (Graph model uses execute, not predict)
+            // The model expects two inputs: encoder_input and decoder_input
+            const prediction = model.execute({
+                'encoder_input': encoderInput,
+                'decoder_input': decoderInput
+            });
+            
+            // 4. Extract the output sequence
+            // The output should be shape [1, maxSeqLength, vocabSize]
+            const outputArray = prediction.arraySync();
+            const outputSequence = outputArray[0]; // Get first batch
+            
+            // 5. Decode the output sequence to characters
+            let correctedWord = '';
+            for (let i = 0; i < outputSequence.length; i++) {
+                // Get the index with highest probability at each time step
+                const tokenProbs = outputSequence[i];
+                const tokenIndex = tokenProbs.indexOf(Math.max(...tokenProbs));
                 
-                // Get the last predicted token's probabilities
-                const lastTimeStep = outputTokens.slice([0, step, 0], [1, 1, vocabSize]);
-                const nextTokenIndex = lastTimeStep.argMax(-1).dataSync()[0];
-
-                // Append to the sequence
-                decodedSequence.push(nextTokenIndex);
-                
-                // Check for stop conditions
-                if (nextTokenIndex === endTokenIndex || correctedWord.length >= maxSteps) {
-                    stopCondition = true;
+                // Stop if we hit the end token
+                if (tokenIndex === endTokenIndex) {
+                    break;
                 }
-
-                // Update states for next iteration
-                states = [h, c];
-                step++;
                 
-                // Prepare the decoder input for the next step
-                const nextDecoderInput = new Array(maxSeqLength).fill(padTokenIndex);
-                const currentDecodedLength = Math.min(decodedSequence.length, maxSeqLength);
-                for (let i = 0; i < currentDecodedLength; i++) {
-                    nextDecoderInput[i] = decodedSequence[i];
-                }
-                decoderInput = tf.tensor2d([nextDecoderInput], [1, maxSeqLength], 'float32');
-
-                // Map index to character for the output word (excluding special tokens)
-                if (nextTokenIndex !== startTokenIndex && 
-                    nextTokenIndex !== endTokenIndex && 
-                    nextTokenIndex !== padTokenIndex &&
-                    correctedWord.length < maxSteps) {
-                    const char = indexToChar[nextTokenIndex];
+                // Skip special tokens (start, pad)
+                if (tokenIndex !== startTokenIndex && tokenIndex !== padTokenIndex) {
+                    const char = indexToChar[tokenIndex];
                     if (char) {
                         correctedWord += char;
                     }
                 }
             }
             
-            // Clean up the word by removing any remaining special tokens
-            return correctedWord.replace(/<start>|<end>|<pad>/g, '').trim();
+            // Clean up and return
+            return correctedWord.trim();
         });
     } catch (error) {
         console.error("Sandbox: Prediction error:", error);
+        console.error("  Error details:", error.stack);
         return null;
     }
 }
@@ -151,35 +137,28 @@ async function initialize(tokenizerUrl, modelUrl) {
             throw new Error("TensorFlow.js library (tf) not found in sandbox. Check that tf.min.js is loaded.");
         }
         
-        console.log("Sandbox: Loading TensorFlow.js model...");
+        console.log("Sandbox: Loading TensorFlow.js model as GraphModel...");
         
-        // Try to load as a graph model first (more compatible with converted Keras models)
-        try {
-            model = await tf.loadGraphModel(modelUrl);
-            console.log("Sandbox: Model loaded as GraphModel");
-        } catch (graphError) {
-            console.log("Sandbox: GraphModel loading failed, trying LayersModel...");
-            console.log("  Error:", graphError.message);
-            
-            try {
-                model = await tf.loadLayersModel(modelUrl);
-                console.log("Sandbox: Model loaded as LayersModel");
-            } catch (layersError) {
-                throw new Error(`Model loading failed: ${layersError.message}`);
-            }
-        }
+        // Load as graph model (converted from SavedModel)
+        model = await tf.loadGraphModel(modelUrl);
+        console.log("Sandbox: Model loaded successfully");
         
-        console.log("Sandbox: TensorFlow.js model loaded successfully");
+        // Log model signature for debugging
+        console.log("Sandbox: Model signature:", model.signature);
 
         // 3. Model Warmup (optional but recommended for performance)
         console.log("Sandbox: Warming up model...");
         tf.tidy(() => {
             try {
-                const warmupInput = tf.zeros([1, maxSeqLength], 'float32');
-                model.predict(warmupInput);
+                const warmupEncoderInput = tf.zeros([1, maxSeqLength], 'float32');
+                const warmupDecoderInput = tf.zeros([1, maxSeqLength], 'float32');
+                model.execute({
+                    'encoder_input': warmupEncoderInput,
+                    'decoder_input': warmupDecoderInput
+                });
                 console.log("Sandbox: Model warmup complete");
             } catch (e) {
-                console.warn("Sandbox: Warmup prediction skipped (Seq2Seq model):", e.message);
+                console.warn("Sandbox: Warmup prediction failed:", e.message);
             }
         });
 
