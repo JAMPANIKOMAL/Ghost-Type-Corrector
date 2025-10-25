@@ -264,7 +264,8 @@ def main():
     print()
     
     # Define paths
-    project_root = Path(__file__).parent
+    script_dir = Path(__file__).parent
+    project_root = script_dir.parent  # ai_model directory
     data_dir = project_root / 'data'
     
     clean_path = data_dir / 'train_clean.txt'

@@ -155,9 +155,12 @@ def main():
     print()
     
     # Define paths
-    project_root = Path(__file__).parent
-    model_path = project_root / 'autocorrect_model.h5'
-    output_dir = project_root.parent / 'extension' / 'model'
+    script_dir = Path(__file__).parent
+    ai_model_dir = script_dir.parent  # ai_model directory
+    project_root = ai_model_dir.parent  # Ghost Type Corrector directory
+    
+    model_path = ai_model_dir / 'autocorrect_model.h5'
+    output_dir = project_root / 'extension' / 'model'
     
     # Check if model exists
     if not model_path.exists():
