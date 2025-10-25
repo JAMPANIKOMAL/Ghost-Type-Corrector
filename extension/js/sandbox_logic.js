@@ -4,7 +4,8 @@
 'use strict';
 
 // --- Global AI Variables ---
-let model = null;
+let encoderModel = null;
+let decoderModel = null;
 let tokenizerConfig = null;
 let charToIndex = null;
 let indexToChar = null;
@@ -37,61 +38,94 @@ function encodeInput(text) {
 }
 
 /**
- * Generates the corrected word using the loaded TensorFlow.js Graph Model.
- * This is the core Seq2Seq inference function.
+ * Generates the corrected word using separate encoder and decoder models.
+ * This is the proper Seq2Seq inference with iterative decoding.
  * @param {string} inputWord - The word to correct (typo)
  * @returns {Promise<string|null>} The predicted correct word, or null if no correction
  */
 async function predictCorrection(inputWord) {
-    if (!model || !inputWord) return null;
+    if (!encoderModel || !decoderModel || !inputWord) return null;
 
     try {
-        // 1. Prepare both inputs for the model
+        // 1. Encode the input word
         const encoderInput = encodeInput(inputWord);
         
-        // 2. Prepare decoder input (starts with <start> token, padded to maxSeqLength)
-        const decoderSequence = new Array(maxSeqLength).fill(padTokenIndex);
-        decoderSequence[0] = startTokenIndex;
-        const decoderInput = tf.tensor2d([decoderSequence], [1, maxSeqLength], 'float32');
+        console.log(`Sandbox: Predicting correction for "${inputWord}"`);
         
-        // 3. Run the model asynchronously (required for dynamic ops like LSTM)
-        const prediction = await model.executeAsync({
-            'encoder_input': encoderInput,
-            'decoder_input': decoderInput
-        });
+        // 2. Get encoder states
+        const encoderStates = encoderModel.predict(encoderInput);
+        let stateH = encoderStates[0];
+        let stateC = encoderStates[1];
         
-        // 4. Extract the output sequence
-        // The output should be shape [1, maxSeqLength, vocabSize]
-        const outputArray = await prediction.array();
-        const outputSequence = outputArray[0]; // Get first batch
-        
-        // 5. Decode the output sequence to characters
+        // 3. Start with the start token
+        let decoderSequence = [startTokenIndex];
         let correctedWord = '';
-        for (let i = 0; i < outputSequence.length; i++) {
-            // Get the index with highest probability at each time step
-            const tokenProbs = outputSequence[i];
-            const tokenIndex = tokenProbs.indexOf(Math.max(...tokenProbs));
+        let maxIterations = maxSeqLength - 2;
+        
+        // 4. Iterative decoding
+        for (let i = 0; i < maxIterations; i++) {
+            // Prepare decoder input (current sequence)
+            const decoderInputArray = new Array(maxSeqLength).fill(padTokenIndex);
+            for (let j = 0; j < Math.min(decoderSequence.length, maxSeqLength); j++) {
+                decoderInputArray[j] = decoderSequence[j];
+            }
+            const decoderInput = tf.tensor2d([decoderInputArray], [1, maxSeqLength], 'float32');
             
-            // Stop if we hit the end token
+            // Predict next token - use object notation with input names
+            const inputDict = {
+                'decoder_input': decoderInput,
+                'decoder_state_h': stateH,
+                'decoder_state_c': stateC
+            };
+            
+            const decoderOutputs = decoderModel.execute(inputDict);
+            const outputTokens = decoderOutputs[0];  // [1, maxSeqLength, vocabSize]
+            const newStateH = decoderOutputs[1];
+            const newStateC = decoderOutputs[2];
+            
+            // Get the prediction for the last generated token
+            const lastTokenProbs = outputTokens.slice([0, decoderSequence.length - 1, 0], [1, 1, vocabSize]).dataSync();
+            const tokenIndex = Array.from(lastTokenProbs).indexOf(Math.max(...lastTokenProbs));
+            
+            console.log(`  Step ${i}: token=${tokenIndex}, char="${indexToChar[tokenIndex]}"`);
+            
+            // Check for end token
             if (tokenIndex === endTokenIndex) {
+                console.log("  Found end token, stopping");
                 break;
             }
             
-            // Skip special tokens (start, pad)
-            if (tokenIndex !== startTokenIndex && tokenIndex !== padTokenIndex) {
+            // Add token to sequence
+            decoderSequence.push(tokenIndex);
+            
+            // Add character to output (skip special tokens)
+            if (tokenIndex !== startTokenIndex && 
+                tokenIndex !== padTokenIndex && 
+                tokenIndex !== endTokenIndex) {
                 const char = indexToChar[tokenIndex];
-                if (char) {
+                if (char && char !== '\t' && char !== '\n') {
                     correctedWord += char;
                 }
             }
+            
+            // Update states for next iteration
+            stateH.dispose();
+            stateC.dispose();
+            stateH = newStateH;
+            stateC = newStateC;
+            
+            // Cleanup
+            decoderInput.dispose();
+            outputTokens.dispose();
         }
         
-        // Cleanup tensors
+        // Cleanup
         encoderInput.dispose();
-        decoderInput.dispose();
-        prediction.dispose();
+        stateH.dispose();
+        stateC.dispose();
         
-        // Clean up and return
+        console.log(`Sandbox: Correction result: "${inputWord}" -> "${correctedWord}"`);
+        
         return correctedWord.trim();
     } catch (error) {
         console.error("Sandbox: Prediction error:", error);
@@ -102,10 +136,11 @@ async function predictCorrection(inputWord) {
 
 // --- Initialization ---
 
-async function initialize(tokenizerUrl, modelUrl) {
+async function initialize(tokenizerUrl, encoderUrl, decoderUrl) {
     console.log("Sandbox: Initializing AI resources...");
     console.log("Sandbox: Tokenizer URL:", tokenizerUrl);
-    console.log("Sandbox: Model URL:", modelUrl);
+    console.log("Sandbox: Encoder URL:", encoderUrl);
+    console.log("Sandbox: Decoder URL:", decoderUrl);
     
     try {
         // 1. Load Tokenizer Configuration
@@ -133,36 +168,39 @@ async function initialize(tokenizerUrl, modelUrl) {
         console.log(`  Max sequence length: ${maxSeqLength}`);
         console.log(`  Vocabulary size: ${vocabSize}`);
 
-        // 2. Load TensorFlow.js Model
+        // 2. Load TensorFlow.js Models
         if (typeof tf === 'undefined') {
             throw new Error("TensorFlow.js library (tf) not found in sandbox. Check that tf.min.js is loaded.");
         }
         
-        console.log("Sandbox: Loading TensorFlow.js model as GraphModel...");
+        console.log("Sandbox: Loading encoder model...");
+        encoderModel = await tf.loadLayersModel(encoderUrl);
+        console.log("Sandbox: ✓ Encoder model loaded");
         
-        // Load as graph model (converted from SavedModel)
-        model = await tf.loadGraphModel(modelUrl);
-        console.log("Sandbox: Model loaded successfully");
-        
-        // Log model signature for debugging
-        console.log("Sandbox: Model signature:", model.signature);
+        console.log("Sandbox: Loading decoder model...");
+        decoderModel = await tf.loadLayersModel(decoderUrl);
+        console.log("Sandbox: ✓ Decoder model loaded");
 
-        // 3. Model Warmup (optional but recommended for performance)
-        console.log("Sandbox: Warming up model...");
+        // 3. Model Warmup
+        console.log("Sandbox: Warming up models...");
         try {
-            const warmupEncoderInput = tf.zeros([1, maxSeqLength], 'float32');
-            const warmupDecoderInput = tf.zeros([1, maxSeqLength], 'float32');
-            const warmupResult = await model.executeAsync({
-                'encoder_input': warmupEncoderInput,
-                'decoder_input': warmupDecoderInput
+            const warmupInput = tf.zeros([1, maxSeqLength], 'float32');
+            const warmupStates = encoderModel.predict(warmupInput);
+            const warmupStateH = warmupStates[0];
+            const warmupStateC = warmupStates[1];
+            
+            decoderModel.execute({
+                'decoder_input': warmupInput,
+                'decoder_state_h': warmupStateH,
+                'decoder_state_c': warmupStateC
             });
-            // Cleanup
-            warmupEncoderInput.dispose();
-            warmupDecoderInput.dispose();
-            warmupResult.dispose();
+            
+            warmupInput.dispose();
+            warmupStateH.dispose();
+            warmupStateC.dispose();
             console.log("Sandbox: Model warmup complete");
         } catch (e) {
-            console.warn("Sandbox: Warmup prediction failed:", e.message);
+            console.warn("Sandbox: Warmup failed:", e.message);
         }
 
         // 4. Signal readiness to the content script
@@ -192,9 +230,9 @@ window.addEventListener('message', async (event) => {
 
     if (event.data.type === 'GTC_INIT') {
         // Receive initialization URLs from content script
-        const { tokenizerUrl, modelUrl } = event.data;
+        const { tokenizerUrl, encoderUrl, decoderUrl } = event.data;
         console.log("Sandbox: Received init message from content script");
-        initialize(tokenizerUrl, modelUrl);
+        initialize(tokenizerUrl, encoderUrl, decoderUrl);
     } else if (event.data.type === 'GTC_PREDICT') {
         const originalWord = event.data.word;
         
