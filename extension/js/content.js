@@ -22,10 +22,43 @@
     let lastProcessedElement = null;// Keep track of the element for undo
     let lastCursorPosition = null; // Store cursor position before correction
 
+    // --- Inject TensorFlow.js into page context ---
+    function injectTensorFlowJS() {
+        return new Promise((resolve, reject) => {
+            // Check if TensorFlow is already loaded
+            if (typeof window.tf !== 'undefined') {
+                console.log("TensorFlow.js already loaded in page context.");
+                resolve();
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = chrome.runtime.getURL('js/lib/tf.min.js');
+            script.onload = () => {
+                console.log("TensorFlow.js injected and loaded successfully.");
+                // Wait a bit for tf to be available on window
+                setTimeout(() => {
+                    if (typeof window.tf !== 'undefined') {
+                        resolve();
+                    } else {
+                        reject(new Error("TensorFlow.js loaded but 'tf' is not available on window object."));
+                    }
+                }, 100);
+            };
+            script.onerror = () => {
+                reject(new Error("Failed to inject TensorFlow.js script."));
+            };
+            (document.head || document.documentElement).appendChild(script);
+        });
+    }
+
     // --- Initialization ---
     async function initialize() {
         console.log("Ghost Type Corrector: Initializing...");
         try {
+            // 0. Inject TensorFlow.js first
+            await injectTensorFlowJS();
+
             // 1. Load Tokenizer Configuration
             const tokenizerUrl = chrome.runtime.getURL('data/tokenizer_config.json');
             console.log("Fetching tokenizer config from:", tokenizerUrl);
@@ -42,17 +75,17 @@
             console.log("Tokenizer config loaded. Max length:", maxSeqLength, "Vocab size:", vocabSize);
 
             // 2. Load TensorFlow.js Model
-            if (typeof tf === 'undefined') throw new Error("TensorFlow.js library (tf) not found.");
+            if (typeof window.tf === 'undefined') throw new Error("TensorFlow.js library (tf) not found on window object.");
             const modelUrl = chrome.runtime.getURL('model/model.json');
             console.log("Loading model from:", modelUrl);
-            model = await tf.loadLayersModel(modelUrl);
+            model = await window.tf.loadLayersModel(modelUrl);
             console.log("TensorFlow.js model loaded successfully.");
 
             // 3. Model Warmup
             console.log("Warming up model...");
-            await tf.tidy(() => { // Use tidy to auto-dispose tensors
-                const warmupInput = tf.zeros([1, maxSeqLength], 'int32');
-                const dummyDecoderInput = tf.zeros([1, maxSeqLength], 'int32');
+            await window.tf.tidy(() => { // Use tidy to auto-dispose tensors
+                const warmupInput = window.tf.zeros([1, maxSeqLength], 'int32');
+                const dummyDecoderInput = window.tf.zeros([1, maxSeqLength], 'int32');
                 try {
                     // Our model expects two inputs as defined during training
                     model.predict([warmupInput, dummyDecoderInput]);
@@ -109,7 +142,7 @@
             }
         }
         // Return tensor within a tidy scope if created here, or manage disposal later
-        return tf.tensor2d([indices], [1, maxSeqLength], 'int32');
+        return window.tf.tensor2d([indices], [1, maxSeqLength], 'int32');
     }
 
     async function predictCorrection(inputText) {
@@ -121,7 +154,7 @@
 
         let correctedText = '';
         try {
-            await tf.tidy(async () => { // Auto-dispose intermediate tensors
+            await window.tf.tidy(async () => { // Auto-dispose intermediate tensors
 
                 // --- Encoder Step ---
                 // We need to get the encoder's final states
@@ -130,7 +163,7 @@
                 if (!encoderLstmLayer) throw new Error("Could not find 'encoder_lstm' layer in the loaded model.");
 
                 // Create an intermediate model to get encoder outputs + states
-                const encoderModel = tf.model({
+                const encoderModel = window.tf.model({
                     inputs: model.input[0], // Encoder input
                     outputs: [...encoderLstmLayer.output] // Output sequence AND states [outputs, state_h, state_c]
                 });
@@ -141,7 +174,7 @@
 
                 // --- Decoder Step (Iterative Prediction) ---
                 // Start with the START_TOKEN index
-                let targetSeq = tf.buffer([1, maxSeqLength], 'int32');
+                let targetSeq = window.tf.buffer([1, maxSeqLength], 'int32');
                 targetSeq.set(startTokenIndex, 0, 0); // Set first element to START
 
                 let stopCondition = false;
@@ -157,7 +190,7 @@
 
                 for (let i = 0; i < maxSeqLength - 1; i++) { // Loop up to max length - 1
                     // Prepare decoder input for this timestep (only the current target sequence matters)
-                    const currentTargetTensor = tf.tensor(targetSeq.toTensor());
+                    const currentTargetTensor = window.tf.tensor(targetSeq.toTensor());
 
                     // Predict the next character
                     // We need a model that takes encoder states and current decoder input
@@ -171,7 +204,7 @@
                     const outputTokensTensor = model.predict([inputTensor, currentTargetTensor]);
 
                     // Get the character index with the highest probability at the current timestep 'i'
-                    const sampledTokenIndex = tf.argMax(outputTokensTensor.slice([0, i, 0], [1, 1, vocabSize]), -1).dataSync()[0];
+                    const sampledTokenIndex = window.tf.argMax(outputTokensTensor.slice([0, i, 0], [1, 1, vocabSize]), -1).dataSync()[0];
 
                     const sampledChar = indexToChar[sampledTokenIndex];
 

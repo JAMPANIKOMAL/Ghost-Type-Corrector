@@ -12,7 +12,6 @@
     {
       "matches": ["<all_urls>"],
       "js": [
-        "js/lib/tf.min.js",   
         "js/override.js",     
         "js/content.js"       
       ],
@@ -27,7 +26,8 @@
       "resources": [
         "model/model.json",   
         "model/*.bin",
-        "data/tokenizer_config.json"
+        "data/tokenizer_config.json",
+        "js/lib/tf.min.js"
       ],
       "matches": ["<all_urls>"]
     }
